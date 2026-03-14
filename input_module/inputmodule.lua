@@ -1503,6 +1503,6 @@ InputModule.getVersion = function()
 	return InputModule.VERSION
 end
 
-print(string.format("[InputModule v%s] Loaded successfully. Keyboard + Mouse + CFrame + Macros + Hotkeys + Loops + Recording ready.", InputModule.VERSION))
+print(string.format("[InputModule v%s].", InputModule.VERSION))
 
 return InputModule
