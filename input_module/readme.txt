@@ -2,7 +2,7 @@ InputModule - Full Cheatsheet
 ==============================
 
 LOAD
-  local Input = loadstring(game:HttpGet("YOUR_URL/InputModule.lua"))()
+  local Input = loadstring(game:HttpGet("https://raw.githubusercontent.com/oxygen015/roblox-modules/refs/heads/main/input_module/inputmodule.lua"))()
 
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
