@@ -1,7 +1,27 @@
 -- inputmodule.lua
--- v2.0.0
--- Keyboard · Mouse · Macros · Recording · Hotkeys · Camera · World · Forums UI
+-- v2.1.0
+-- Keyboard · Mouse · Macros · Recording · Hotkeys · Camera · World
+-- File Persistence · Anti-AFK · Notifications · Player Utils · Forums UI
 
+--[[
+  WHAT'S NEW IN v2.1.0
+  AUTO-OPENS the Forums UI on load  (set Input.AUTO_UI=false before load to skip)
+  FILE PERSISTENCE  macros and recordings saved to InputModule/macros/
+  MACRO FOLDER      writefile/readfile/listfiles + custom JSON serialiser
+  IMPORT/EXPORT     JSON export to clipboard, paste-to-import via UI textbox
+  ANTI-AFK          jump / nudge / chat modes, configurable interval
+  NOTIFICATIONS     StarterGui:SetCore wrapper  Input.notify(title,text,dur)
+  PLAYER UTILS      walkSpeed, jumpPower, walkTo, distanceTo, fire helpers
+  CONDITION MACROS  Input.runMacroWhile(macro, condFn)
+  MACRO SCHEDULER   Input.scheduleMacro(macro, intervalSecs)
+  addJump / addNotify action adders
+  Save logs to disk  Input.saveLogsToFile()
+  2026 executors: Seliware, Solara, AWP X, Nihon, Cryptic, Codex, Evon, Hydrogen,
+                  Arceus X, Vega X, Blade, Comet  (all with tier rating)
+  fireclickdetector / fireproximityprompt / firetouchinterest helpers
+  UI expanded to 12 sections: File Manager, Anti-AFK, Player Utils, Scheduler
+  Stats: combos, typeChars, antiAfkSaves added
+]]
 local Input = {}
 
 local VIM          = game:GetService("VirtualInputManager")
@@ -10,8 +30,11 @@ local RunService   = game:GetService("RunService")
 local Players      = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
 local HttpService  = game:GetService("HttpService")
+local StarterGui   = game:GetService("StarterGui")
+local StarterGui   = game:GetService("StarterGui")
 
-Input.VERSION = "2.0.0"
+Input.VERSION = "2.1.0"
+Input.AUTO_UI  = true   -- set false before load to suppress auto-open
 Input.LEFT    = 0
 Input.RIGHT   = 1
 Input.MIDDLE  = 2
@@ -25,51 +48,67 @@ local function detectExecutor()
     local supported = true
     local features = {}
 
-    -- Synapse X / Synapse V3
-    if syn then
-        name = "Synapse X"
-        features = {"Drawing", "HttpGet", "require", "decompile", "WebSocket"}
-    -- KRNL
-    elseif KRNL_LOADED or krnl then
-        name = "KRNL"
-        features = {"Drawing", "HttpGet", "require", "WebSocket"}
-    -- Fluxus
-    elseif fluxus or (identifyexecutor and identifyexecutor():lower():find("flux")) then
-        name = "Fluxus"
-        features = {"Drawing", "HttpGet", "require"}
-    -- ScriptWare
-    elseif ScriptWare or (identifyexecutor and identifyexecutor():lower():find("scriptware")) then
-        name = "ScriptWare"
-        features = {"Drawing", "HttpGet", "require", "WebSocket"}
-    -- Electron
-    elseif electron or (identifyexecutor and identifyexecutor():lower():find("electron")) then
-        name = "Electron"
-        features = {"Drawing", "HttpGet"}
-    -- Oxygen U
-    elseif OXYGEN_LOADED then
-        name = "Oxygen U"
-        features = {"Drawing", "HttpGet"}
-    -- Coco Z
-    elseif COCOZCHEATS_LOADED then
-        name = "Coco Z"
-        features = {"Drawing", "HttpGet"}
-    -- Delta / Delta X
-    elseif Delta or (identifyexecutor and identifyexecutor():lower():find("delta")) then
-        name = "Delta"
-        features = {"Drawing", "HttpGet"}
-    -- Wave
-    elseif Wave or (identifyexecutor and identifyexecutor():lower():find("wave")) then
-        name = "Wave"
-        features = {"Drawing", "HttpGet", "require"}
-    -- Celery
-    elseif celery or (identifyexecutor and identifyexecutor():lower():find("celery")) then
-        name = "Celery"
-        features = {"Drawing", "HttpGet"}
-    -- identifyexecutor fallback
-    elseif identifyexecutor then
+    -- ── name detection (2026) ─────────────────────────────────────────────────
+    local idExec = ""
+    if identifyexecutor then
         local ok, id = pcall(identifyexecutor)
-        if ok and id then name = id end
-        features = {"HttpGet"}
+        if ok and type(id)=="string" then idExec = id:lower() end
+    end
+    if getexecutorname then
+        local ok2, id2 = pcall(getexecutorname)
+        if ok2 and type(id2)=="string" and #id2>0 then idExec = id2:lower() end
+    end
+
+    local tier = "unknown"   -- "top" | "mid" | "low"
+
+    if syn and syn.request then
+        name="Synapse X"; tier="top"
+    elseif syn then
+        name="Synapse V3"; tier="top"
+    elseif (SELIWARE_LOADED~=nil) or idExec:find("seliware") then
+        name="Seliware"; tier="top"
+    elseif (AWP_LOADED~=nil) or idExec:find("awp") then
+        name="AWP X"; tier="top"
+    elseif (SOLARA~=nil) or idExec:find("solara") then
+        name="Solara"; tier="top"
+    elseif (NIHON_LOADED~=nil) or idExec:find("nihon") then
+        name="Nihon"; tier="top"
+    elseif (CRYPTIC_LOADED~=nil) or idExec:find("cryptic") then
+        name="Cryptic"; tier="top"
+    elseif ScriptWare or idExec:find("scriptware") then
+        name="ScriptWare"; tier="top"
+    elseif KRNL_LOADED or krnl or idExec:find("krnl") then
+        name="KRNL"; tier="mid"
+    elseif (EVON_LOADED~=nil) or idExec:find("evon") then
+        name="Evon"; tier="mid"
+    elseif (ARCEUSX_LOADED~=nil) or idExec:find("arceus") then
+        name="Arceus X"; tier="mid"
+    elseif idExec:find("hydrogen") then
+        name="Hydrogen"; tier="mid"
+    elseif (CODEX_LOADED~=nil) or idExec:find("codex") then
+        name="Codex"; tier="mid"
+    elseif Delta or idExec:find("delta") then
+        name="Delta"; tier="mid"
+    elseif Wave or idExec:find("wave") then
+        name="Wave"; tier="mid"
+    elseif fluxus or idExec:find("fluxus") then
+        name="Fluxus"; tier="mid"
+    elseif electron or idExec:find("electron") then
+        name="Electron"; tier="mid"
+    elseif celery or idExec:find("celery") then
+        name="Celery"; tier="low"
+    elseif COCOZCHEATS_LOADED or idExec:find("coco") then
+        name="Coco Z"; tier="low"
+    elseif OXYGEN_LOADED or idExec:find("oxygen") then
+        name="Oxygen U"; tier="low"
+    elseif (VEGAX~=nil) or idExec:find("vegax") then
+        name="Vega X"; tier="low"
+    elseif idExec:find("blade") then
+        name="Blade"; tier="low"
+    elseif idExec:find("comet") then
+        name="Comet"; tier="low"
+    elseif #idExec>0 then
+        name=idExec; tier="unknown"
     end
 
     -- Feature detection
@@ -79,30 +118,36 @@ local function detectExecutor()
         checkedFeatures[fname] = ok
     end
 
-    check("Drawing",    function() return Drawing end)
-    check("HttpGet",    function() return game.HttpGet or syn and syn.request or http_request end)
-    check("getgenv",    function() return getgenv() end)
-    check("getrenv",    function() return getrenv() end)
-    check("setfenv",    function() return setfenv end)
-    check("getfenv",    function() return getfenv end)
-    check("require",    function() return require ~= nil end)
-    check("loadstring", function() return loadstring ~= nil end)
-    check("gethui",     function() return gethui() end)
-    check("VIM",        function() return VIM ~= nil end)
-    check("WebSocket",  function() return WebSocket end)
-    check("writefile",  function() return writefile end)
-    check("readfile",   function() return readfile end)
-    check("listfiles",  function() return listfiles end)
+    check("Drawing",           function() assert(Drawing) end)
+    check("HttpGet",           function() assert(game.HttpGet or (syn and syn.request) or http_request) end)
+    check("getgenv",           function() assert(type(getgenv())=="table") end)
+    check("getrenv",           function() assert(getrenv) end)
+    check("setfenv",           function() assert(setfenv) end)
+    check("loadstring",        function() assert(loadstring) end)
+    check("gethui",            function() assert(gethui()) end)
+    check("VIM",               function() assert(VIM) end)
+    check("WebSocket",         function() assert(WebSocket) end)
+    check("writefile",         function() assert(writefile) end)
+    check("readfile",          function() assert(readfile) end)
+    check("listfiles",         function() assert(listfiles) end)
+    check("makefolder",        function() assert(makefolder) end)
+    check("isfolder",          function() assert(isfolder) end)
+    check("isfile",            function() assert(isfile) end)
+    check("hookfunction",      function() assert(hookfunction) end)
+    check("fireclickdetector", function() assert(fireclickdetector) end)
+    check("firetouchinterest", function() assert(firetouchinterest) end)
+    check("fireproximityprompt",function() assert(fireproximityprompt) end)
+    check("setclipboard",      function() assert(setclipboard or toclipboard) end)
+    check("decompile",         function() assert(decompile) end)
+    check("getrawmeta",        function() assert(getrawmeta) end)
 
-    -- VIM support is critical for this module
-    if not checkedFeatures["VIM"] then
-        supported = false
-    end
+    if not checkedFeatures["VIM"] then supported = false end
 
     return {
-        name = name,
+        name      = name,
+        tier      = tier,
         supported = supported,
-        features = checkedFeatures,
+        features  = checkedFeatures,
     }
 end
 
@@ -120,7 +165,7 @@ local recStart        = 0
 local recConns        = {}
 local hotkeys         = {}
 local hotkeyConn      = nil
-local _stats          = { taps=0, clicks=0, scrolls=0, macrosRun=0, recordingsSaved=0, dragCount=0 }
+local _stats = { taps=0, clicks=0, scrolls=0, macrosRun=0, recordingsSaved=0, dragCount=0, combos=0, typeChars=0, antiAfkSaves=0 }
 local _logEnabled     = true
 local _logHistory     = {}
 local _mouseTrail     = {}
@@ -131,6 +176,10 @@ local _hooks          = {}
 local _macroWatchers  = {}
 local _profiles       = {}
 local _runningThreads = {}
+local _antiAfkStop    = nil
+local _scheduledMacros= {}
+local _antiAfkStop    = nil
+local _scheduledMacros= {}
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- LOGGING
@@ -156,7 +205,315 @@ Input.getLogs      = function()  return _logHistory end
 Input.clearLogs    = function()  _logHistory = {} end
 Input.printLogs    = function(n) n=n or 20 local h=_logHistory for i=math.max(1,#h-n+1),#h do print(h[i].text) end end
 Input.getLogsSince = function(t) local r={} for _,e in ipairs(_logHistory) do if e.time>=t then table.insert(r,e) end end return r end
-Input.exportLogs   = function()  local l={} for _,e in ipairs(_logHistory) do table.insert(l,string.format("[%.2f] %s",e.time,e.text)) end return table.concat(l,"\n") end
+Input.exportLogs   = function() local l={} for _,e in ipairs(_logHistory) do table.insert(l,string.format("[%.2f] %s",e.time,e.text)) end return table.concat(l,"\n") end
+Input.saveLogsToFile=function(fname)
+    if not writefile then warn_("log","writefile not available") return false end
+    fname=fname or ("log_"..math.floor(tick())..".txt")
+    pcall(function() if not isfolder("InputModule") then makefolder("InputModule") end if not isfolder("InputModule/logs") then makefolder("InputModule/logs") end end)
+    local ok=pcall(writefile,"InputModule/logs/"..fname,Input.exportLogs())
+    if ok then log("log","saved: InputModule/logs/"..fname) end return ok
+end
+Input.saveLogsToFile=function(name)
+    if not writefile then warn_("log","writefile not available") return false end
+    name=name or ("log_"..math.floor(tick())..".txt")
+    local ok,err=pcall(function() if not isfolder("InputModule") then makefolder("InputModule") end if not isfolder("InputModule/logs") then makefolder("InputModule/logs") end writefile("InputModule/logs/"..name,Input.exportLogs()) end)
+    if ok then log("log","saved: InputModule/logs/"..name) end return ok
+end
+
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- NOTIFICATIONS
+-- ─────────────────────────────────────────────────────────────────────────────
+Input.notify=function(title,text,dur)
+    dur=dur or 4
+    pcall(function()
+        StarterGui:SetCore("SendNotification",{Title=tostring(title),Text=tostring(text),Duration=dur})
+    end)
+end
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- CLIPBOARD
+-- ─────────────────────────────────────────────────────────────────────────────
+local function toClipboard(text)
+    if setclipboard then pcall(setclipboard,text) return true
+    elseif toclipboard then pcall(toclipboard,text) return true end
+    return false
+end
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- FILE SYSTEM  (InputModule/ folder tree)
+-- ─────────────────────────────────────────────────────────────────────────────
+local FS_ROOT    = "InputModule"
+local FS_MACROS  = FS_ROOT.."/macros"
+local FS_RECS    = FS_ROOT.."/recordings"
+local FS_LOGS    = FS_ROOT.."/logs"
+local FS_PROFILES= FS_ROOT.."/profiles"
+
+local FS_AVAILABLE = false
+
+local function fsEnsure(path)
+    pcall(function() if not isfolder(path) then makefolder(path) end end)
+end
+
+local function fsInit()
+    local ok=pcall(function()
+        fsEnsure(FS_ROOT); fsEnsure(FS_MACROS); fsEnsure(FS_RECS)
+        fsEnsure(FS_LOGS); fsEnsure(FS_PROFILES)
+    end)
+    FS_AVAILABLE = ok and (pcall(function() assert(writefile and readfile and listfiles and makefolder and isfolder) end))
+    return FS_AVAILABLE
+end
+
+local function fsWrite(path,data) if not writefile then return false end local ok,e=pcall(writefile,path,data) return ok,e end
+local function fsRead(path)
+    if not readfile then return nil end
+    local ok,d=pcall(function() return isfile(path) and readfile(path) or nil end)
+    return ok and d or nil
+end
+local function fsList(dir)
+    if not listfiles then return {} end
+    local ok,f=pcall(listfiles,dir) return ok and f or {}
+end
+
+-- ── Simple JSON serialiser (numbers, strings, booleans, tables) ──────────────
+local function jsonEncode(val)
+    local t=type(val)
+    if t=="nil"     then return "null"
+    elseif t=="boolean" then return tostring(val)
+    elseif t=="number"  then return (val~=val) and "null" or tostring(val)
+    elseif t=="string"  then
+        return '"' ..val:gsub('\\','\\\\'):gsub('"','\\\\"'): gsub('\n','\\n'):gsub('\r','\\r').. '"'
+    elseif t=="table" then
+        local isArr=true; local maxN=0
+        for k in pairs(val) do if type(k)~="number" or k<1 or math.floor(k)~=k then isArr=false break end if k>maxN then maxN=k end end
+        if isArr and maxN==#val and #val>0 then
+            local parts={} for _,v in ipairs(val) do table.insert(parts,jsonEncode(v)) end
+            return "["..table.concat(parts,",").."]"
+        else
+            local parts={} for k,v in pairs(val) do if type(k)=="string" or type(k)=="number" then table.insert(parts,jsonEncode(tostring(k))..":"..jsonEncode(v)) end end
+            return "{"..table.concat(parts,",").."}"
+        end
+    end return "null"
+end
+
+-- ── Minimal JSON decoder ─────────────────────────────────────────────────────
+local function jsonDecode(s)
+    local pos=1
+    local function skip() while pos<=#s and s:sub(pos,pos):match("%s") do pos=pos+1 end end
+    local function peek() skip() return s:sub(pos,pos) end
+    local function consume(c) skip() if s:sub(pos,pos)==c then pos=pos+1 return true end return false end
+    local decode
+    local function decStr()
+        pos=pos+1; local buf={}
+        while pos<=#s do
+            local c=s:sub(pos,pos)
+            if c=='"' then pos=pos+1 break
+            elseif c=='\\' then pos=pos+1 local e=s:sub(pos,pos)
+                if e=='"' then table.insert(buf,'"') elseif e=='\\' then table.insert(buf,'\\'): elseif e=='n' then table.insert(buf,'\n') elseif e=='r' then table.insert(buf,'\r') elseif e=='t' then table.insert(buf,'\t') else table.insert(buf,e) end
+            else table.insert(buf,c) end
+            pos=pos+1
+        end return table.concat(buf)
+    end
+    local function decNum() local start=pos if s:sub(pos,pos)=='-' then pos=pos+1 end while pos<=#s and s:sub(pos,pos):match("[%d%.eE%+%-]") do pos=pos+1 end return tonumber(s:sub(start,pos-1)) end
+    local function decArr() pos=pos+1; local arr={} skip() if peek()==']' then pos=pos+1 return arr end repeat table.insert(arr,decode()) skip() until not consume(',') consume(']') return arr end
+    local function decObj() pos=pos+1; local obj={} skip() if peek()=='}' then pos=pos+1 return obj end repeat skip() local k=decStr() consume(':') obj[k]=decode() skip() until not consume(',') consume('}') return obj end
+    decode=function() skip() local c=peek() if c=='"' then return decStr() elseif c=='{' then return decObj() elseif c=='[' then return decArr() elseif c=='t' then pos=pos+4 return true elseif c=='f' then pos=pos+5 return false elseif c=='n' then pos=pos+4 return nil elseif c=='-' or c:match("%d") then return decNum() end return nil end
+    local ok,r=pcall(decode) return ok and r or nil
+end
+
+-- ── Macro → JSON (skips live-ref action types) ───────────────────────────────
+local function macroToJson(m)
+    local safe={name=m.name,speed=m.speed,loops=m.loops,enabled=m.enabled,tags=m.tags,created=m.created,actions={}}
+    for _,a in ipairs(m.actions) do
+        if a.type~="cfclick" and a.type~="partclick" and a.type~="repeat" and a.type~="condition" and a.type~="callback" then
+            local ca={} for k,v in pairs(a) do if type(v)=="string" or type(v)=="number" or type(v)=="boolean" then ca[k]=v elseif type(v)=="table" then ca[k]=v end end
+            table.insert(safe.actions,ca)
+        end
+    end
+    return jsonEncode(safe)
+end
+
+-- ── JSON → Macro table ───────────────────────────────────────────────────────
+local function macroFromJson(json)
+    local data=jsonDecode(json) if not data or type(data)~="table" then return nil end
+    local m={name=data.name or "imported",speed=tonumber(data.speed) or 1.0,loops=tonumber(data.loops) or 1,enabled=data.enabled~=false,tags=data.tags or {},meta={},created=data.created,actions={}}
+    if data.actions then for _,a in ipairs(data.actions) do local ca={} for k,v in pairs(a) do ca[k]=v end table.insert(m.actions,ca) end end
+    return m
+end
+
+-- ── Public file API ───────────────────────────────────────────────────────────
+Input.saveMacroToFile=function(macro)
+    if not writefile then warn_("file","writefile not available"); return false end
+    local path=FS_MACROS.."/"..macro.name..".json"
+    local ok,err=fsWrite(path,macroToJson(macro))
+    if ok then log("file","macro saved → "..path); Input.notify("Saved",macro.name.." written to disk",3) else warn_("file","save failed: "..tostring(err)) end
+    return ok
+end
+
+Input.loadMacroFromFile=function(name)
+    if not readfile then warn_("file","readfile not available"); return nil end
+    local data=fsRead(FS_MACROS.."/"..name..".json")
+    if not data then warn_("file","not found: "..name); return nil end
+    local m=macroFromJson(data)
+    if not m then warn_("file","parse error: "..name); return nil end
+    macroStore[m.name]=m; log("file","loaded ← "..name); Input.notify("Loaded",m.name.." ("..#m.actions.." actions)",3); return m
+end
+
+Input.listMacroFiles=function()
+    local files=fsList(FS_MACROS); local names={}
+    for _,f in ipairs(files) do local n=tostring(f):match("([^/\\]+)%.json$"); if n then table.insert(names,n) end end
+    table.sort(names); return names
+end
+
+Input.saveAllMacros=function()
+    local count=0 for _,m in pairs(macroStore) do if Input.saveMacroToFile(m) then count=count+1 end end
+    log("file","saved "..count.." macros"); return count
+end
+
+Input.loadAllMacros=function()
+    local files=Input.listMacroFiles(); local count=0
+    for _,name in ipairs(files) do if Input.loadMacroFromFile(name) then count=count+1 end end
+    log("file","loaded "..count.." macros"); return count
+end
+
+Input.deleteMacroFile=function(name)
+    local path=FS_MACROS.."/"..name..".json"
+    pcall(function() if delfile then delfile(path) else fsWrite(path,'{"_deleted":true}') end end)
+    log("file","deleted file: "..path)
+end
+
+Input.exportMacroToClipboard=function(macro)
+    local json=macroToJson(macro)
+    if toClipboard(json) then Input.notify("Exported",macro.name.." JSON in clipboard",3); return true end
+    warn_("file","clipboard not available"); return false
+end
+
+Input.importMacroFromJson=function(json)
+    local m=macroFromJson(json)
+    if not m then warn_("file","import: bad JSON"); return nil end
+    macroStore[m.name]=m; log("file","imported: "..m.name); Input.notify("Imported",m.name.." ("..#m.actions.." actions)",3); return m
+end
+
+Input.saveRecordingToFile=function(name,actions)
+    if not writefile then warn_("file","writefile not available"); return false end
+    local ok=fsWrite(FS_RECS.."/"..name..".json", jsonEncode(actions or recActions))
+    if ok then log("file","recording saved: "..name) end; return ok
+end
+
+Input.loadRecordingFromFile=function(name)
+    local data=fsRead(FS_RECS.."/"..name..".json")
+    if not data then warn_("file","recording not found: "..name); return nil end
+    local actions=jsonDecode(data)
+    if actions then
+        for _,a in ipairs(actions) do
+            if a.x then a.x=tonumber(a.x) end; if a.y then a.y=tonumber(a.y) end; if a.time then a.time=tonumber(a.time) end
+        end
+        log("file","recording loaded: "..name.." ("..#actions.." actions)")
+    end return actions
+end
+
+Input.listRecordingFiles=function()
+    local files=fsList(FS_RECS); local names={}
+    for _,f in ipairs(files) do local n=tostring(f):match("([^/\\]+)%.json$"); if n then table.insert(names,n) end end
+    table.sort(names); return names
+end
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ANTI-AFK
+-- ─────────────────────────────────────────────────────────────────────────────
+Input.startAntiAfk=function(mode,interval)
+    if _antiAfkStop then warn_("antiafk","already running"); return end
+    mode=mode or "jump"; interval=interval or 60
+    local running=true
+    local function doAction()
+        _stats.antiAfkSaves=(_stats.antiAfkSaves or 0)+1
+        if mode=="jump" then
+            local h=game:GetService("Players").LocalPlayer and game:GetService("Players").LocalPlayer.Character and game:GetService("Players").LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
+        elseif mode=="nudge" then
+            VIM:SendKeyEvent(true,Enum.KeyCode.W,false,game); task.wait(0.1); VIM:SendKeyEvent(false,Enum.KeyCode.W,false,game)
+        elseif mode=="chat" then
+            VIM:SendKeyEvent(true,Enum.KeyCode.Slash,false,game); task.wait(0.05); VIM:SendKeyEvent(false,Enum.KeyCode.Slash,false,game)
+            task.wait(0.1); VIM:SendKeyEvent(true,Enum.KeyCode.Escape,false,game); task.wait(0.05); VIM:SendKeyEvent(false,Enum.KeyCode.Escape,false,game)
+        end
+        log("antiafk","action fired ("..mode..")")
+    end
+    task.spawn(function() while running do task.wait(interval) if running then pcall(doAction) end end end)
+    _antiAfkStop=function() running=false; _antiAfkStop=nil end
+    log("antiafk","started  mode="..mode.."  interval="..interval.."s")
+end
+Input.stopAntiAfk=function() if _antiAfkStop then _antiAfkStop(); log("antiafk","stopped") else warn_("antiafk","not running") end end
+Input.isAntiAfkRunning=function() return _antiAfkStop~=nil end
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- PLAYER UTILITIES
+-- ─────────────────────────────────────────────────────────────────────────────
+Input.getLocalPlayer =function() return Players.LocalPlayer end
+Input.getCharacter   =function() return Players.LocalPlayer and Players.LocalPlayer.Character end
+Input.getRootPart    =function() local c=Input.getCharacter(); return c and c:FindFirstChild("HumanoidRootPart") end
+Input.getHumanoid    =function() local c=Input.getCharacter(); return c and c:FindFirstChildOfClass("Humanoid") end
+Input.getPlayerPos   =function() local r=Input.getRootPart(); return r and r.Position or nil end
+Input.setWalkSpeed   =function(speed) local h=Input.getHumanoid(); if h then h.WalkSpeed=speed end end
+Input.setJumpPower   =function(power) local h=Input.getHumanoid(); if h then h.JumpPower=power end end
+Input.jump=function()
+    local h=Input.getHumanoid(); if not h then return false end
+    h:ChangeState(Enum.HumanoidStateType.Jumping); return true
+end
+Input.walkTo=function(target,timeout)
+    local h=Input.getHumanoid(); if not h then return false end
+    if typeof(target)=="Instance" and target:IsA("BasePart") then target=target.Position end
+    h:MoveTo(target); local reached=false
+    local conn=h.MoveToFinished:Connect(function(r) reached=r end)
+    local t=0; while not reached do task.wait(0.1); t=t+0.1; if timeout and t>=timeout then conn:Disconnect(); return false end end
+    conn:Disconnect(); return true
+end
+Input.getPlayerList  =function() local r={} for _,p in ipairs(Players:GetPlayers()) do table.insert(r,p.Name) end; return r end
+Input.getPlayerByName=function(name) return Players:FindFirstChild(name) end
+Input.getDistanceTo  =function(target)
+    local root=Input.getRootPart(); if not root then return math.huge end
+    local pos=typeof(target)=="Vector3" and target or (target:IsA("BasePart") and target.Position)
+    if not pos then return math.huge end; return (root.Position-pos).Magnitude
+end
+
+Input.fireClickDetector=function(part,dist)
+    if not fireclickdetector then warn_("world","fireclickdetector unavailable"); return false end
+    local cd=part:FindFirstChildOfClass("ClickDetector"); if not cd then warn_("world","no ClickDetector on "..part.Name); return false end
+    pcall(fireclickdetector,cd,dist or 0); return true
+end
+Input.fireProximityPrompt=function(part)
+    if not fireproximityprompt then warn_("world","fireproximityprompt unavailable"); return false end
+    local pp=part:FindFirstChildOfClass("ProximityPrompt"); if not pp then warn_("world","no ProximityPrompt on "..part.Name); return false end
+    pcall(fireproximityprompt,pp); return true
+end
+Input.fireTouchInterest=function(part,touchPart)
+    if not firetouchinterest then warn_("world","firetouchinterest unavailable"); return false end
+    touchPart=touchPart or Input.getRootPart(); if not touchPart then return false end
+    pcall(firetouchinterest,touchPart,part,0); return true
+end
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- MACRO SCHEDULER
+-- ─────────────────────────────────────────────────────────────────────────────
+Input.scheduleMacro=function(macro,intervalSecs,runImmediately)
+    local id=tostring(tick()); local running=true
+    _scheduledMacros[id]={macro=macro,interval=intervalSecs,stop=function() running=false end}
+    task.spawn(function()
+        if runImmediately then Input.runMacro(macro) end
+        while running do task.wait(intervalSecs) if running then Input.runMacro(macro) end end
+        _scheduledMacros[id]=nil
+    end)
+    log("schedule","macro '"..macro.name.."' every "..intervalSecs.."s  id="..id); return id
+end
+Input.unscheduleMacro=function(id) if _scheduledMacros[id] then _scheduledMacros[id].stop(); _scheduledMacros[id]=nil end end
+Input.listScheduled  =function() local r={} for id,s in pairs(_scheduledMacros) do table.insert(r,{id=id,name=s.macro.name,interval=s.interval}) end; return r end
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- MACRO UTILITIES  (runMacroWhile + new action adders)
+-- ─────────────────────────────────────────────────────────────────────────────
+Input.runMacroWhile=function(macro,condFn,checkIv)
+    checkIv=checkIv or 0.2
+    task.spawn(function() while condFn() do Input.runMacro(macro) task.wait(checkIv) end end)
+end
 
 -- ─────────────────────────────────────────────────────────────────────────────
 -- EVENT HOOKS
@@ -347,7 +704,7 @@ Input.holdKey          =function(key,dur)     if not Input.keyDown(key) then ret
 Input.holdKeyAsync     =function(key,dur)     task.spawn(Input.holdKey,key,dur) end
 Input.holdKeys         =function(keys,dur)    for _,k in ipairs(keys) do Input.keyDown(k) end task.wait(dur) for i=#keys,1,-1 do Input.keyUp(keys[i]) end end
 Input.holdKeysAsync    =function(keys,dur)    task.spawn(Input.holdKeys,keys,dur) end
-Input.combo            =function(keys,cb,rd)  rd=rd or 0.05 for _,k in ipairs(keys) do Input.keyDown(k) end if cb then cb() end task.wait(rd) for i=#keys,1,-1 do Input.keyUp(keys[i]) end end
+Input.combo            =function(keys,cb,rd)  rd=rd or 0.05; _stats.combos=(_stats.combos or 0)+1 for _,k in ipairs(keys) do Input.keyDown(k) end if cb then cb() end task.wait(rd) for i=#keys,1,-1 do Input.keyUp(keys[i]) end end
 Input.comboAsync       =function(keys,cb,rd)  task.spawn(Input.combo,keys,cb,rd) end
 
 Input.releaseAll=function()
@@ -365,7 +722,7 @@ Input.spam      =function(key,n,iv)     iv=iv or 0.05 for i=1,n do Input.tap(key
 Input.spamAsync =function(key,n,iv)     task.spawn(Input.spam,key,n,iv) end
 Input.spamUntil =function(key,fn,iv,max) iv=iv or 0.1 max=max or 30 local e=0 while not fn() and e<max do Input.tap(key,0.03) task.wait(iv) e+=iv end end
 
-Input.typeText     =function(text,iv,rand) iv=iv or 0.05 rand=rand or false for i=1,#text do local ch=text:sub(i,i) if KeyMap[ch] then Input.tap(ch,0.04) else warn_("type","no mapping: "..ch) end task.wait(rand and iv*(0.6+math.random()*0.8) or iv) end end
+Input.typeText     =function(text,iv,rand) iv=iv or 0.05 rand=rand or false for i=1,#text do local ch=text:sub(i,i) if KeyMap[ch] then Input.tap(ch,0.04) else warn_("type","no mapping: "..ch) end _stats.typeChars=(_stats.typeChars or 0)+1 task.wait(rand and iv*(0.6+math.random()*0.8) or iv) end end
 Input.typeTextAsync=function(text,iv,rand) task.spawn(Input.typeText,text,iv,rand) end
 Input.typeHuman    =function(text,wpm)     wpm=wpm or 60 local base=60/(wpm*5) for i=1,#text do local ch=text:sub(i,i) if KeyMap[ch] then Input.tap(ch,0.03) end local j=base*(0.5+math.random()*1.0) if ch=="."or ch==","or ch=="!"or ch=="?" then j=j*3 end task.wait(j) end end
 Input.typeHumanAsync=function(text,wpm)    task.spawn(Input.typeHuman,text,wpm) end
@@ -581,7 +938,7 @@ end
 -- ─────────────────────────────────────────────────────────────────────────────
 
 Input.newMacro=function(name)
-    local m={name=name or ("macro_"..tostring(tick())),actions={},speed=1.0,loops=1,enabled=true,tags={},meta={}}
+    local m={name=name or ("macro_"..tostring(tick())),actions={},speed=1.0,loops=1,enabled=true,tags={},meta={},created=tick()}
     if name then macroStore[name]=m end return m
 end
 
@@ -615,6 +972,8 @@ Input.addRepeat     =function(m,inner,n)             table.insert(m.actions,{typ
 Input.addCondition  =function(m,fn,t,f)              table.insert(m.actions,{type="condition",condFn=fn,trueMacro=t,falseMacro=f}) end
 Input.addCallback   =function(m,fn,dl)               table.insert(m.actions,{type="callback",fn=fn,delay=dl or 0}) end
 Input.addPrint      =function(m,msg)                 table.insert(m.actions,{type="callback",fn=function() print("[Macro] "..tostring(msg)) end,delay=0}) end
+Input.addNotify     =function(m,title,text,dur)       table.insert(m.actions,{type="callback",fn=function() Input.notify(title,text,dur) end,delay=0}) end
+Input.addJump       =function(m,dl)                   table.insert(m.actions,{type="callback",fn=Input.jump,delay=dl or 0}) end
 Input.addUDim2Click =function(m,xs,xo,ys,yo,b,h,dl) table.insert(m.actions,{type="udim2click",xScale=xs,xOffset=xo or 0,yScale=ys,yOffset=yo or 0,button=b or Input.LEFT,holdTime=h or 0.05,delay=dl or 0}) end
 Input.addWaitFor    =function(m,fn,to,iv)            table.insert(m.actions,{type="waitfor",condFn=fn,timeout=to or 10,interval=iv or 0.05}) end
 Input.addBreakIf    =function(m,fn)                  table.insert(m.actions,{type="breakif",condFn=fn}) end
@@ -661,6 +1020,8 @@ Input.runMacro=function(macro,overLoops,overSpeed)
             elseif a.type=="udim2click"  then Input.clickUDim2(a.xScale,a.xOffset,a.yScale,a.yOffset,a.button,a.holdTime/speed)
             elseif a.type=="waitfor"     then Input.waitFor(a.condFn,a.timeout,a.interval)
             elseif a.type=="breakif"     then if a.condFn() then _break=true end
+            elseif a.type=="breakif"     then if pcall(a.condFn) and a.condFn() then _break=true end
+            elseif a.type=="waitfor"     then local e2=0 while not pcall(a.condFn) or not a.condFn() do task.wait(a.interval or 0.05) e2=e2+(a.interval or 0.05) if a.timeout and e2>=a.timeout then break end end
             elseif a.type=="repeat"      then for _=1,a.times do if _break then break end run(a.macro.actions) end
             elseif a.type=="condition"   then
                 if a.condFn() then if a.trueMacro then run(a.trueMacro.actions) end
@@ -807,6 +1168,408 @@ Input.scaleRecording=function(actions,factor)
     local out={} for _,a in ipairs(actions) do local c={} for k,v in pairs(a) do c[k]=v end c.time=c.time*factor table.insert(out,c) end return out
 end
 
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- NOTIFICATIONS
+-- ─────────────────────────────────────────────────────────────────────────────
+Input.notify=function(title,text,dur)
+    dur=dur or 4
+    pcall(function()
+        StarterGui:SetCore("SendNotification",{Title=tostring(title),Text=tostring(text),Duration=dur})
+    end)
+end
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- CLIPBOARD
+-- ─────────────────────────────────────────────────────────────────────────────
+local function toClipboard(text)
+    if setclipboard then pcall(setclipboard,text) return true
+    elseif toclipboard then pcall(toclipboard,text) return true end
+    return false
+end
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- FILE SYSTEM  (InputModule/ folder tree + JSON codec)
+-- ─────────────────────────────────────────────────────────────────────────────
+local FS_ROOT    = "InputModule"
+local FS_MACROS  = FS_ROOT.."/macros"
+local FS_RECS    = FS_ROOT.."/recordings"
+local FS_LOGS    = FS_ROOT.."/logs"
+local FS_PROFILES= FS_ROOT.."/profiles"
+
+-- check if filesystem is usable
+local FS_AVAILABLE = (function()
+    return type(writefile)=="function" and type(readfile)=="function"
+       and type(listfiles)=="function" and type(makefolder)=="function"
+       and type(isfolder)=="function"
+end)()
+
+local function fsEnsure(path)
+    if not FS_AVAILABLE then return end
+    pcall(function() if not isfolder(path) then makefolder(path) end end)
+end
+local function fsInitFolders()
+    fsEnsure(FS_ROOT); fsEnsure(FS_MACROS); fsEnsure(FS_RECS)
+    fsEnsure(FS_LOGS); fsEnsure(FS_PROFILES)
+end
+local function fsWrite(path,data)
+    if not writefile then return false end
+    local ok,err=pcall(writefile,path,data); return ok,err
+end
+local function fsRead(path)
+    if not readfile then return nil end
+    local ok,d=pcall(function()
+        if type(isfile)=="function" and not isfile(path) then return nil end
+        return readfile(path)
+    end)
+    return ok and d or nil
+end
+local function fsList(dir)
+    if not listfiles then return {} end
+    local ok,f=pcall(listfiles,dir); return ok and f or {}
+end
+
+-- ── tiny JSON encoder (string/number/bool/nil/array/object) ──────────────────
+local function jsonEncode(val)
+    local t=type(val)
+    if t=="nil" then return "null"
+    elseif t=="boolean" then return tostring(val)
+    elseif t=="number"  then return (val~=val) and "null" or tostring(val)
+    elseif t=="string"  then
+        return '"'..val:gsub('\\','\\\\'):gsub('"','\\"'):gsub('\n','\\n'):gsub('\r','\\r')..'"'
+    elseif t=="table" then
+        local isArr,maxN=true,0
+        for k in pairs(val) do
+            if type(k)~="number" or k<1 or math.floor(k)~=k then isArr=false break end
+            if k>maxN then maxN=k end
+        end
+        if isArr and maxN==#val and #val>0 then
+            local p={} for _,v in ipairs(val) do table.insert(p,jsonEncode(v)) end
+            return "["..table.concat(p,",").."]"
+        else
+            local p={} for k,v in pairs(val) do
+                if type(k)=="string" or type(k)=="number" then
+                    table.insert(p,jsonEncode(tostring(k))..":"..jsonEncode(v))
+                end
+            end
+            return "{"..table.concat(p,",").."}"
+        end
+    end
+    return "null"
+end
+
+-- ── tiny JSON decoder ─────────────────────────────────────────────────────────
+local function jsonDecode(s)
+    local pos=1
+    local function skip() while pos<=#s and s:sub(pos,pos):match("%s") do pos=pos+1 end end
+    local function peek() skip() return s:sub(pos,pos) end
+    local function consume(c) skip() if s:sub(pos,pos)==c then pos=pos+1 return true end return false end
+    local decode
+    local function dStr()
+        pos=pos+1; local buf={}
+        while pos<=#s do
+            local c=s:sub(pos,pos)
+            if c=='"' then pos=pos+1 break
+            elseif c=='\\' then
+                pos=pos+1; local e=s:sub(pos,pos)
+                if e=='"' then buf[#buf+1]='"' elseif e=='\\' then buf[#buf+1]='\\' elseif e=='n' then buf[#buf+1]='\n' elseif e=='r' then buf[#buf+1]='\r' elseif e=='t' then buf[#buf+1]='\t' else buf[#buf+1]=e end
+            else buf[#buf+1]=c end
+            pos=pos+1
+        end
+        return table.concat(buf)
+    end
+    local function dNum()
+        local st=pos; if s:sub(pos,pos)=="-" then pos=pos+1 end
+        while pos<=#s and s:sub(pos,pos):match("[%d%.eE%+%-]") do pos=pos+1 end
+        return tonumber(s:sub(st,pos-1))
+    end
+    local function dArr()
+        pos=pos+1; local a={} skip()
+        if peek()=="]" then pos=pos+1 return a end
+        repeat a[#a+1]=decode() skip() until not consume(",")
+        consume("]"); return a
+    end
+    local function dObj()
+        pos=pos+1; local o={} skip()
+        if peek()=="}" then pos=pos+1 return o end
+        repeat skip(); local k=dStr(); consume(":"); o[k]=decode() skip() until not consume(",")
+        consume("}"); return o
+    end
+    decode=function()
+        skip(); local c=peek()
+        if c=='"' then return dStr()
+        elseif c=="{" then return dObj()
+        elseif c=="[" then return dArr()
+        elseif c=="t" then pos=pos+4 return true
+        elseif c=="f" then pos=pos+5 return false
+        elseif c=="n" then pos=pos+4 return nil
+        elseif c=="-" or c:match("%d") then return dNum()
+        end
+        return nil
+    end
+    local ok,r=pcall(decode); return ok and r or nil
+end
+
+-- ── serialize macro to JSON (skips live-ref action types) ───────────────────
+local function macroToJson(m)
+    local safe={name=m.name,speed=m.speed,loops=m.loops,enabled=m.enabled,
+                tags=m.tags or {},created=m.created,actions={}}
+    for _,a in ipairs(m.actions) do
+        if a.type~="cfclick" and a.type~="partclick" and a.type~="repeat"
+        and a.type~="condition" and a.type~="callback" and a.type~="breakif"
+        and a.type~="waitfor" then
+            local ca={}
+            for k,v in pairs(a) do
+                if type(v)=="string" or type(v)=="number" or type(v)=="boolean" then ca[k]=v
+                elseif type(v)=="table" then ca[k]=v end
+            end
+            safe.actions[#safe.actions+1]=ca
+        end
+    end
+    return jsonEncode(safe)
+end
+
+-- ── deserialize JSON back to macro table ────────────────────────────────────
+local function macroFromJson(json)
+    local data=jsonDecode(json)
+    if not data or type(data)~="table" then return nil end
+    local m={name=data.name or "imported",
+             speed=tonumber(data.speed) or 1.0,
+             loops=tonumber(data.loops) or 1,
+             enabled=data.enabled~=false,
+             tags=data.tags or {},meta={},
+             created=data.created,actions={}}
+    if data.actions then
+        for _,a in ipairs(data.actions) do
+            local ca={}; for k,v in pairs(a) do ca[k]=v end
+            m.actions[#m.actions+1]=ca
+        end
+    end
+    return m
+end
+
+-- ── public file API ──────────────────────────────────────────────────────────
+Input.saveMacroToFile=function(macro)
+    if not FS_AVAILABLE then warn_("file","writefile not available") return false end
+    local path=FS_MACROS.."/"..macro.name..".json"
+    local ok,err=fsWrite(path,macroToJson(macro))
+    if ok then log("file","macro saved -> "..path); Input.notify("Saved",macro.name.." written to disk",3)
+    else warn_("file","save failed: "..tostring(err)) end
+    return ok
+end
+
+Input.loadMacroFromFile=function(name)
+    if not FS_AVAILABLE then warn_("file","readfile not available") return nil end
+    local data=fsRead(FS_MACROS.."/"..name..".json")
+    if not data then warn_("file","not found: "..name) return nil end
+    local m=macroFromJson(data)
+    if not m then warn_("file","parse error: "..name) return nil end
+    macroStore[m.name]=m
+    log("file","loaded <- "..name)
+    Input.notify("Loaded",m.name.." ("..#m.actions.." actions)",3)
+    return m
+end
+
+Input.listMacroFiles=function()
+    local files=fsList(FS_MACROS); local names={}
+    for _,f in ipairs(files) do
+        local n=tostring(f):match("([^/\\]+)%.json$")
+        if n then names[#names+1]=n end
+    end
+    table.sort(names); return names
+end
+
+Input.saveAllMacros=function()
+    if not FS_AVAILABLE then warn_("file","FS not available") return 0 end
+    local count=0
+    for _,m in pairs(macroStore) do if Input.saveMacroToFile(m) then count=count+1 end end
+    log("file","saved "..count.." macros"); return count
+end
+
+Input.loadAllMacros=function()
+    if not FS_AVAILABLE then warn_("file","FS not available") return 0 end
+    local files=Input.listMacroFiles(); local count=0
+    for _,name in ipairs(files) do if Input.loadMacroFromFile(name) then count=count+1 end end
+    log("file","loaded "..count.." macros"); return count
+end
+
+Input.deleteMacroFile=function(name)
+    if not FS_AVAILABLE then return false end
+    local path=FS_MACROS.."/"..name..".json"
+    local ok=pcall(function()
+        if type(delfile)=="function" then delfile(path)
+        else fsWrite(path,'{"_deleted":true}') end
+    end)
+    log("file","deleted: "..path); return ok
+end
+
+Input.exportMacroToClipboard=function(macro)
+    local json=macroToJson(macro)
+    if toClipboard(json) then
+        Input.notify("Exported",macro.name.." JSON in clipboard",3)
+        return true
+    end
+    warn_("file","clipboard unavailable"); return false
+end
+
+Input.importMacroFromJson=function(json)
+    local m=macroFromJson(json)
+    if not m then warn_("file","bad JSON") return nil end
+    macroStore[m.name]=m
+    log("file","imported: "..m.name)
+    Input.notify("Imported",m.name.." ("..#m.actions.." actions)",3)
+    return m
+end
+
+Input.saveRecordingToFile=function(name,actions)
+    if not FS_AVAILABLE then warn_("file","FS not available") return false end
+    local ok=fsWrite(FS_RECS.."/"..name..".json",jsonEncode(actions or recActions))
+    if ok then log("file","recording saved: "..name) end; return ok
+end
+
+Input.loadRecordingFromFile=function(name)
+    if not FS_AVAILABLE then warn_("file","FS not available") return nil end
+    local data=fsRead(FS_RECS.."/"..name..".json")
+    if not data then warn_("file","recording not found: "..name) return nil end
+    local acts=jsonDecode(data)
+    if acts then
+        for _,a in ipairs(acts) do
+            if a.x then a.x=tonumber(a.x) end
+            if a.y then a.y=tonumber(a.y) end
+            if a.time then a.time=tonumber(a.time) end
+        end
+        log("file","recording loaded: "..name.." ("..#acts.." actions)")
+    end
+    return acts
+end
+
+Input.listRecordingFiles=function()
+    local files=fsList(FS_RECS); local names={}
+    for _,f in ipairs(files) do
+        local n=tostring(f):match("([^/\\]+)%.json$")
+        if n then names[#names+1]=n end
+    end
+    table.sort(names); return names
+end
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- ANTI-AFK
+-- ─────────────────────────────────────────────────────────────────────────────
+Input.startAntiAfk=function(mode,interval)
+    if _antiAfkStop then warn_("antiafk","already running") return end
+    mode=mode or "jump"; interval=interval or 60
+    local running=true
+    local function doAction()
+        _stats.antiAfkSaves=_stats.antiAfkSaves+1
+        if mode=="jump" then
+            local h=Input.getHumanoid and Input.getHumanoid()
+            if h then h:ChangeState(Enum.HumanoidStateType.Jumping) end
+        elseif mode=="nudge" then
+            VIM:SendKeyEvent(true,Enum.KeyCode.W,false,game)
+            task.wait(0.1)
+            VIM:SendKeyEvent(false,Enum.KeyCode.W,false,game)
+        elseif mode=="chat" then
+            VIM:SendKeyEvent(true,Enum.KeyCode.Slash,false,game); task.wait(0.05)
+            VIM:SendKeyEvent(false,Enum.KeyCode.Slash,false,game); task.wait(0.1)
+            VIM:SendKeyEvent(true,Enum.KeyCode.Escape,false,game); task.wait(0.05)
+            VIM:SendKeyEvent(false,Enum.KeyCode.Escape,false,game)
+        end
+        log("antiafk","action fired ("..mode..")")
+    end
+    task.spawn(function()
+        while running do task.wait(interval) if running then pcall(doAction) end end
+    end)
+    _antiAfkStop=function() running=false; _antiAfkStop=nil end
+    log("antiafk","started  mode="..mode.."  interval="..interval.."s")
+end
+Input.stopAntiAfk=function()
+    if _antiAfkStop then _antiAfkStop(); log("antiafk","stopped")
+    else warn_("antiafk","not running") end
+end
+Input.isAntiAfkRunning=function() return _antiAfkStop~=nil end
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- PLAYER UTILITIES
+-- ─────────────────────────────────────────────────────────────────────────────
+Input.getLocalPlayer =function() return Players.LocalPlayer end
+Input.getCharacter   =function() return Players.LocalPlayer and Players.LocalPlayer.Character end
+Input.getRootPart    =function() local c=Input.getCharacter() return c and c:FindFirstChild("HumanoidRootPart") end
+Input.getHumanoid    =function() local c=Input.getCharacter() return c and c:FindFirstChildOfClass("Humanoid") end
+Input.getPlayerPos   =function() local r=Input.getRootPart() return r and r.Position or nil end
+Input.setWalkSpeed   =function(speed) local h=Input.getHumanoid() if h then h.WalkSpeed=speed end end
+Input.setJumpPower   =function(power) local h=Input.getHumanoid() if h then h.JumpPower=power end end
+Input.jump=function()
+    local h=Input.getHumanoid() if not h then return false end
+    h:ChangeState(Enum.HumanoidStateType.Jumping) return true
+end
+Input.walkTo=function(target,timeout)
+    local h=Input.getHumanoid() if not h then return false end
+    if typeof(target)=="Instance" and target:IsA("BasePart") then target=target.Position end
+    h:MoveTo(target)
+    local reached=false
+    local conn=h.MoveToFinished:Connect(function(r) reached=r end)
+    local t=0
+    while not reached do
+        task.wait(0.1); t=t+0.1
+        if timeout and t>=timeout then conn:Disconnect() return false end
+    end
+    conn:Disconnect() return true
+end
+Input.getPlayerList  =function() local r={} for _,p in ipairs(Players:GetPlayers()) do r[#r+1]=p.Name end return r end
+Input.getPlayerByName=function(name) return Players:FindFirstChild(name) end
+Input.getDistanceTo  =function(target)
+    local root=Input.getRootPart() if not root then return math.huge end
+    local pos=typeof(target)=="Vector3" and target or (target:IsA and target:IsA("BasePart") and target.Position)
+    if not pos then return math.huge end
+    return (root.Position-pos).Magnitude
+end
+Input.fireClickDetector=function(part,dist)
+    if not fireclickdetector then warn_("world","fireclickdetector unavailable") return false end
+    local cd=part:FindFirstChildOfClass("ClickDetector")
+    if not cd then warn_("world","no ClickDetector on "..part.Name) return false end
+    pcall(fireclickdetector,cd,dist or 0) return true
+end
+Input.fireProximityPrompt=function(part)
+    if not fireproximityprompt then warn_("world","fireproximityprompt unavailable") return false end
+    local pp=part:FindFirstChildOfClass("ProximityPrompt")
+    if not pp then warn_("world","no ProximityPrompt on "..part.Name) return false end
+    pcall(fireproximityprompt,pp) return true
+end
+Input.fireTouchInterest=function(part,touchPart)
+    if not firetouchinterest then warn_("world","firetouchinterest unavailable") return false end
+    touchPart=touchPart or Input.getRootPart()
+    if not touchPart then return false end
+    pcall(firetouchinterest,touchPart,part,0) return true
+end
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- MACRO SCHEDULER
+-- ─────────────────────────────────────────────────────────────────────────────
+Input.scheduleMacro=function(macro,intervalSecs,runImmediately)
+    local id=tostring(tick()); local running=true
+    _scheduledMacros[id]={macro=macro,interval=intervalSecs,stop=function() running=false end}
+    task.spawn(function()
+        if runImmediately then Input.runMacro(macro) end
+        while running do
+            task.wait(intervalSecs)
+            if running then Input.runMacro(macro) end
+        end
+        _scheduledMacros[id]=nil
+    end)
+    log("schedule","macro '"..macro.name.."' every "..intervalSecs.."s  id="..id)
+    return id
+end
+Input.unscheduleMacro=function(id)
+    if _scheduledMacros[id] then _scheduledMacros[id].stop() _scheduledMacros[id]=nil end
+end
+Input.listScheduled=function()
+    local r={} for id,s in pairs(_scheduledMacros) do r[#r+1]={id=id,name=s.macro.name,interval=s.interval} end return r
+end
+Input.runMacroWhile=function(macro,condFn,checkIv)
+    checkIv=checkIv or 0.2
+    task.spawn(function() while condFn() do Input.runMacro(macro) task.wait(checkIv) end end)
+end
+
 -- ─────────────────────────────────────────────────────────────────────────────
 -- HOTKEYS
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -892,11 +1655,11 @@ Input.alternate=function(fA,fB,n,wA,wB) wA=wA or 0.5 wB=wB or 0.5 for _=1,n do p
 -- STATS
 -- ─────────────────────────────────────────────────────────────────────────────
 
-Input.getStats  =function() return {taps=_stats.taps,clicks=_stats.clicks,scrolls=_stats.scrolls,drags=_stats.dragCount,macrosRun=_stats.macrosRun,recordingsSaved=_stats.recordingsSaved} end
-Input.resetStats=function() _stats={taps=0,clicks=0,scrolls=0,macrosRun=0,recordingsSaved=0,dragCount=0} end
+Input.getStats  =function() return {taps=_stats.taps,clicks=_stats.clicks,scrolls=_stats.scrolls,drags=_stats.dragCount,macrosRun=_stats.macrosRun,recordingsSaved=_stats.recordingsSaved,combos=_stats.combos or 0,typeChars=_stats.typeChars or 0,antiAfkSaves=_stats.antiAfkSaves or 0} end
+Input.resetStats=function() _stats={taps=0,clicks=0,scrolls=0,macrosRun=0,recordingsSaved=0,dragCount=0,combos=0,typeChars=0,antiAfkSaves=0} end
 Input.printStats=function()
     local s=Input.getStats()
-    print(string.format("[Input] taps=%d  clicks=%d  scrolls=%d  drags=%d  macros=%d  recordings=%d",s.taps,s.clicks,s.scrolls,s.drags,s.macrosRun,s.recordingsSaved))
+    print(string.format("[Input] taps=%d clicks=%d scrolls=%d drags=%d macros=%d recs=%d combos=%d chars=%d antiafk=%d",s.taps,s.clicks,s.scrolls,s.drags,s.macrosRun,s.recordingsSaved,s.combos,s.typeChars,s.antiAfkSaves))
 end
 
 -- ─────────────────────────────────────────────────────────────────────────────
@@ -1737,16 +2500,185 @@ Input.openUI = function()
 
     secHooks:Seperator()
 
-    log("UI", "Forums UI opened  |  executor=" .. execName .. "  supported=" .. tostring(vimOK))
+    -- ════ PROFILES section (unchanged) already above — add File/AFK/Player below ════
+
+    -- ════ FILE MANAGER SECTION ═══════════════════════════════════════════════
+    local secFile = Forums:NewSection("💾  File Manager")
+    local fsStr = FS_AVAILABLE and "Filesystem: Available ✓" or "Filesystem: Unavailable ✗  (no writefile)"
+    secFile:NewToggle(fsStr, function() end)
+
+    secFile:NewButton("List Macro Files (console)", function()
+        local files=Input.listMacroFiles()
+        if #files==0 then print("[UI] No macro files in InputModule/macros/")
+        else print("[UI] Macro files ("..#files.."):") for _,n in ipairs(files) do print("  • "..n..".json") end end
+    end)
+    secFile:NewButton("Save ALL Macros to Disk ★", function()
+        local n=Input.saveAllMacros()
+        print("[UI] Saved "..n.." macro(s)."); Input.notify("Saved",n.." macros to disk",3)
+    end)
+    secFile:NewButton("Load ALL Macros from Disk ★", function()
+        local n=Input.loadAllMacros()
+        print("[UI] Loaded "..n.." macro(s).")
+    end)
+    secFile:NewButton("Save CURRENT Macro to Disk ★", function()
+        if not currentMacro_ then print("[UI] No macro loaded.") return end
+        Input.saveMacroToFile(currentMacro_)
+    end)
+    local loadNameBox=secFile:NewTextBox("Macro name to load from disk", function(name)
+        if name and #name>0 then
+            local m=Input.loadMacroFromFile(name)
+            if m then currentMacro_=m; refreshMacroInfo() end
+        end
+    end); loadNameBox:Update("")
+    secFile:NewButton("Export Current Macro → Clipboard (JSON) ★", function()
+        if not currentMacro_ then print("[UI] No macro.") return end
+        if not Input.exportMacroToClipboard(currentMacro_) then
+            print("[UI] Clipboard unavailable. JSON printed to console:")
+            print(macroToJson(currentMacro_))
+        end
+    end)
+    local importBox=secFile:NewTextBox("Paste JSON here then lose focus to import", function(json)
+        if json and #json>5 then
+            local m=Input.importMacroFromJson(json)
+            if m then currentMacro_=m; refreshMacroInfo(); print("[UI] Imported: "..m.name) end
+        end
+    end)
+    secFile:NewButton("Delete Current Macro File from Disk", function()
+        if not currentMacro_ then print("[UI] No macro.") return end
+        Input.deleteMacroFile(currentMacro_.name)
+        Input.notify("Deleted",currentMacro_.name.." file removed",3)
+    end)
+    secFile:NewButton("List Recording Files (console)", function()
+        local files=Input.listRecordingFiles()
+        print("[UI] Recordings ("..#files.."):")
+        for _,n in ipairs(files) do print("  • "..n..".json") end
+    end)
+    secFile:NewButton("Save Logs to File ★", function()
+        if Input.saveLogsToFile() then Input.notify("Logs","Saved to InputModule/logs/",3)
+        else print("[UI] writefile unavailable.") end
+    end)
+    secFile:Seperator()
+
+    -- ════ ANTI-AFK SECTION ════════════════════════════════════════════════
+    local secAFK = Forums:NewSection("🛡  Anti-AFK")
+    local afkTog = secAFK:NewToggle("Anti-AFK: OFF", function() end)
+    secAFK:NewDropdown("AFK Mode", {"jump","nudge","chat"}, function() end)
+    secAFK:NewSlider("Interval (seconds)  15-300", 15, 300, function() end)
+    secAFK:NewButton("▶  Start Anti-AFK (jump, 60s)", function()
+        if Input.isAntiAfkRunning() then print("[UI] Already running.") return end
+        Input.startAntiAfk("jump",60)
+        afkTog:Update("Anti-AFK: ON ✓  (jump, 60s)")
+        Input.notify("Anti-AFK","Started – jump mode, 60s interval",4)
+    end)
+    secAFK:NewButton("■  Stop Anti-AFK", function()
+        Input.stopAntiAfk()
+        afkTog:Update("Anti-AFK: OFF")
+        Input.notify("Anti-AFK","Stopped",3)
+    end)
+    secAFK:NewButton("Print AFK Saves Count", function()
+        print("[UI] Anti-AFK saves: "..tostring(_stats.antiAfkSaves))
+    end)
+    secAFK:Seperator()
+
+    -- ════ PLAYER UTILS SECTION ═══════════════════════════════════════════
+    local secPl = Forums:NewSection("👤  Player Utils")
+    secPl:NewButton("Print Character Info", function()
+        local lp=Players.LocalPlayer; local h=Input.getHumanoid(); local r=Input.getRootPart()
+        print("=== "..lp.Name.." ===")
+        if h then print("  HP: "..h.Health.."/"..h.MaxHealth.."  Speed: "..h.WalkSpeed.."  Jump: "..h.JumpPower) end
+        if r then print(string.format("  Pos: %.1f, %.1f, %.1f",r.Position.X,r.Position.Y,r.Position.Z)) end
+        print("  Game: "..game.Name.." (PlaceId "..game.PlaceId..")")
+    end)
+    secPl:NewTextBox("Set Walk Speed (press enter/blur)", function(v)
+        local n=tonumber(v); if n then Input.setWalkSpeed(n); print("[UI] WalkSpeed="..n) end
+    end):Update("16")
+    secPl:NewTextBox("Set Jump Power (press enter/blur)", function(v)
+        local n=tonumber(v); if n then Input.setJumpPower(n); print("[UI] JumpPower="..n) end
+    end):Update("50")
+    secPl:NewButton("JUMP", function() Input.jump() end)
+    secPl:NewButton("List Players (console)", function()
+        print("[UI] Players: "..table.concat(Input.getPlayerList(),", "))
+    end)
+    secPl:NewButton("Distance to All Players", function()
+        for _,p in ipairs(Players:GetPlayers()) do
+            if p~=Players.LocalPlayer and p.Character then
+                local r2=p.Character:FindFirstChild("HumanoidRootPart")
+                if r2 then print(string.format("  %s  %.1f studs",p.Name,Input.getDistanceTo(r2.Position))) end
+            end
+        end
+    end)
+    secPl:NewButton("Fire Nearest ClickDetector ★", function()
+        for _,obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("ClickDetector") then
+                pcall(fireclickdetector or function() end, obj, 0)
+                print("[UI] Fired ClickDetector on "..obj.Parent.Name) return
+            end
+        end; print("[UI] No ClickDetectors found.")
+    end)
+    secPl:NewButton("Fire Nearest ProximityPrompt ★", function()
+        for _,obj in ipairs(workspace:GetDescendants()) do
+            if obj:IsA("ProximityPrompt") then
+                pcall(fireproximityprompt or function() end, obj)
+                print("[UI] Fired ProximityPrompt on "..obj.Parent.Name) return
+            end
+        end; print("[UI] No ProximityPrompts found.")
+    end)
+    secPl:Seperator()
+
+    -- ════ SCHEDULER SECTION ══════════════════════════════════════════════
+    local secSched = Forums:NewSection("⏰  Macro Scheduler")
+    secSched:NewSlider("Schedule Interval (s)  5-600", 5, 600, function() end)
+    secSched:NewButton("Schedule Current Macro (30s) ★", function()
+        if not currentMacro_ then print("[UI] No macro loaded.") return end
+        local id=Input.scheduleMacro(currentMacro_,30,false)
+        print("[UI] Scheduled '"..currentMacro_.name.."' every 30s  id="..id)
+        Input.notify("Scheduled",currentMacro_.name.." every 30s",3)
+    end)
+    secSched:NewButton("List Scheduled Macros (console)", function()
+        local list=Input.listScheduled()
+        if #list==0 then print("[UI] None scheduled.") return end
+        for _,s in ipairs(list) do print(string.format("  id=%s  %s  every=%ss",s.id,s.name,s.interval)) end
+    end)
+    secSched:NewButton("Stop All Scheduled Macros", function()
+        local list=Input.listScheduled()
+        for _,s in ipairs(list) do Input.unscheduleMacro(s.id) end
+        print("[UI] Stopped "..#list.." scheduled macro(s).")
+    end)
+    secSched:Seperator()
+
+    log("UI","Forums UI opened  |  executor="..execName.."  tier="..(Input.Executor.tier or "?").."  supported="..tostring(vimOK).."  fs="..tostring(FS_AVAILABLE))
+    Input.notify("InputModule v"..Input.VERSION, execName.."  |  "..(vimOK and "Ready ✓" or "VIM missing ✗"), 5)
 end
 
 -- ─────────────────────────────────────────────────────────────────────────────
+-- INIT  (folder tree + auto-UI)
+-- ─────────────────────────────────────────────────────────────────────────────
+do
+    -- silently create folder structure on load if FS available
+    if FS_AVAILABLE then
+        pcall(fsInitFolders)
+    end
+end
 
 print(string.format(
-    "[InputModule v%s] loaded  |  executor: %s  |  VIM supported: %s  |  Input.openUI() to open",
+    "[InputModule v%s] loaded  |  executor: %s [%s]  |  VIM: %s  |  FS: %s  |  auto-UI: %s",
     Input.VERSION,
     Input.Executor.name,
-    tostring(Input.Executor.supported)
+    Input.Executor.tier or "?",
+    tostring(Input.Executor.supported),
+    tostring(FS_AVAILABLE),
+    tostring(Input.AUTO_UI)
 ))
+
+-- Auto-open UI after a short yield so require() returns first
+if Input.AUTO_UI then
+    task.spawn(function()
+        task.wait(0.5)
+        local ok, err = pcall(Input.openUI)
+        if not ok then
+            warn("[InputModule] Auto-UI failed: "..tostring(err))
+        end
+    end)
+end
 
 return Input
