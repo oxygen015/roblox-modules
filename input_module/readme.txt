@@ -1,513 +1,437 @@
-InputModule - Full Cheatsheet
-==============================
-v3.0.0
-
-LOAD
-  local Input = loadstring(game:HttpGet("https://raw.githubusercontent.com/oxygen015/roblox-modules/refs/heads/main/input_module/inputmodule.lua"))()
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-KEYBOARD
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Input.tap("e")                              tap a key once
-Input.tap("Space", 0.2)                     tap + hold 0.2s
-Input.tapAsync("e")                         tap without yielding
-Input.tapMultiple({"e","f","g"})            tap a list of keys in order
-Input.tapMultiple({"e","f"}, 0.05, 0.1)     with holdTime + interval between each
-Input.tapMultipleAsync({"e","f","g"})
-
-Input.keyDown("w")                          hold key down
-Input.keyUp("w")                            release key
-Input.holdKey("w", 2)                       hold for 2 seconds
-Input.holdKeyAsync("w", 2)
-Input.holdKeys({"w","LShift"}, 1.5)         hold multiple keys together
-Input.holdKeysAsync({"w","LShift"}, 1.5)
-
-Input.combo({"LCtrl","c"})                  Ctrl+C
-Input.combo({"LCtrl","LShift","i"})         Ctrl+Shift+I
-Input.comboAsync({"LCtrl","z"})
-
-Input.typeText("hello world")               type a string
-Input.typeText("hello", 0.05, true)         type with random timing
-Input.typeHuman("hello world", 60)          type at ~60 WPM with natural variation
-                                            -- pauses longer after . , ! ?
-
-Input.spam("e", 10, 0.1)                    tap E 10 times, 0.1s apart
-Input.spamAsync("e", 10, 0.1)
-Input.spamUntil("e", function()             spam until condition is true
-    return someCondition
-end, 0.1, 30)
-
-Input.sequence({                            run a structured key sequence
-    "w",
-    {key="e", hold=0.1},
-    {wait=0.5},
-    {combo={"LCtrl","z"}},
-    {text="hello"},                         type text inline in a sequence
-})
-Input.sequenceAsync({...})
-
-Input.isKeyHeld("w")                        true/false
-Input.isAnyKeyHeld({"w","a","s","d"})       true if any is held
-Input.areAllKeysHeld({"LCtrl","LShift"})    true only if ALL are held
-Input.releaseAll()                          release everything held
-
-Input.waitForKey("f")                       yield until F is pressed
-Input.waitForKey("f", 5)                    yield with 5s timeout
-Input.waitForKeyRelease("f", 5)             yield until key released
-Input.waitForAnyKey({"f","g","h"})          yield until any of the keys is pressed
-Input.waitForAnyKey({"f","g"}, 5)           -- returns which key was pressed, or nil
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-KEY NAMES REFERENCE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Letters:     a-z  A-Z
-Numbers:     0-9
-Shifted:     ! @ # $ % ^ & * ( )
-Special:     Space  Enter  Tab  Backspace  Escape
-             Delete Insert Home End PageUp PageDown
-             Up Down Left Right  CapsLock
-Arrow keys:  Up Down Left Right
-Function:    F1 - F12
-Modifiers:   LShift RShift LCtrl RCtrl LAlt RAlt LMeta RMeta
-Numpad:      Num0-Num9  Num.  Num+  Num-  Num*  Num/  NumEnter
-Punctuation: - = [ ] \ ; ' , . /  and  ` (backtick)
-
-Input.listKeys()       -- print all valid names
-Input.hasKey("`")      -- check if a key is supported on this executor
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-MOUSE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Input.mouseMove(500, 300)                   move cursor instantly
-Input.mouseMoveSmooth(500, 300, 0.4)        smooth move over 0.4s
-Input.mouseMoveSmooth(x, y, t, "easeInOut") easing styles below
-Input.mouseMoveNatural(500, 300, 0.4)       smooth move along a bezier curve
-                                            -- random arc, looks human
-
-Input.click(500, 300)                       left click
-Input.click(500, 300, Input.RIGHT)          right click
-Input.click(500, 300, Input.LEFT, 0.2)      hold 0.2s
-Input.clickAsync(500, 300)
-Input.rightClick(500, 300)
-Input.rightClickAsync(500, 300)
-Input.middleClick(500, 300)
-Input.doubleClick(500, 300)
-Input.tripleClick(500, 300)
-Input.clickAndHold(500, 300, 2)             hold for 2 seconds
-
-Input.clickHuman(500, 300)                  click with slight random pixel offset
-Input.clickHuman(500, 300, Input.LEFT, 0.05, 6)   custom spread radius (default 4)
-Input.clickFromCenter(100, -50)             click offset from screen center
-Input.clickRegion(100, 100, 400, 300)       click random spot inside a rectangle
-Input.clickUDim2(0.5, 0, 0.5, 0)           click at a UDim2 scale position
-Input.clickUDim2(xScale, xOffset, yScale, yOffset, button, holdTime)
-                                            -- negative xScale anchors from right edge
-
-Input.drag(100,200, 500,200)                drag left to right
-Input.drag(x1,y1, x2,y2, btn, steps, dur, "easeInOut")
-Input.dragAsync(...)
-Input.swipe(x1,y1, x2,y2, 0.2)             fast swipe
-
-Input.scroll(500, 300, 3)                   scroll up 3 ticks at pos
-Input.scroll(500, 300, -3)                  scroll down
-Input.scrollHere(2)                         scroll at current cursor
-Input.scrollSmooth(500, 300, 5, 0.5)        smooth scroll over 0.5s
-
-Input.mouseDown(500, 300)                   raw button down
-Input.mouseUp(500, 300)                     raw button up
-
-Input.getMousePos()                         returns x, y as two numbers
-Input.getMouseX()                           number
-Input.getMouseY()                           number
-Input.getScreenCenter()                     returns x, y as two numbers
-Input.getScreenSize()                       returns width, height as two numbers
-Input.screenFraction(0.5, 0.5)             returns x, y as two numbers
-
-Input.waitForClick()                        yield, returns x, y
-Input.waitForClick(Input.RIGHT, 5)          right click, 5s timeout
-
-Input.startMouseTracking()                  start recording mouse positions
-Input.stopMouseTracking()                   stop + returns trail table
-Input.getMouseTrail()                       get current trail table
-                                            -- each entry: {x, y, t}
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EASING STYLES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Used in smooth moves, drags, macros, and camera functions.
-
-  linear      constant speed (default)
-  easeIn      starts slow, ends fast
-  easeOut     starts fast, ends slow
-  easeInOut   slow at both ends, fast in the middle
-  bounce      bounces at the end
-  elastic     springy overshoot
-  sine        gentle sine curve
-  cubic       stronger ease using t^3
-  back        slight overshoot before settling
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SCREEN / UDIM2 UTILS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-All of these auto-calculate based on your actual viewport size.
-
-Input.fromUDim2(xScale, xOffset, yScale, yOffset)
-    -- converts UDim2 values to real screen pixel x, y
-    -- example: Input.fromUDim2(0.5, 0, 0.5, 0) -> screen center
-
-Input.fromUDim2Smart(xScale, xOffset, yScale, yOffset)
-    -- same as above but negative scales anchor from the right/bottom edge
-    -- example: Input.fromUDim2Smart(-0.02, 0, 0.8, 0)
-    --          -> x is 2% from the right edge
-
-Input.getScreenSize()                       returns width, height
-Input.getScreenCenter()                     returns center x, y
-Input.screenFraction(0.5, 0.5)             returns x, y at that fraction
-Input.screenDistance(cf)                    pixel distance from screen center to a CFrame
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CFRAME / WORLD INTERACTION
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Input.clickCFrame(cf)                       click a world CFrame
-Input.clickCFrameAsync(cf)
-Input.clickPart(workspace.MyPart)           click a BasePart
-Input.clickPartAsync(workspace.MyPart)
-Input.clickPosition(Vector3.new(0,5,0))     click a world Vector3
-Input.clickPositionAsync(Vector3.new(...))
-Input.clickModel(workspace.MyModel)         click model bounding box center
-Input.clickNearestPart("ButtonName")        click nearest part with that name
-Input.clickNearestPart()                    click nearest part (any name)
-Input.clickNearestOnScreen("ButtonName")    click the part closest to screen center
-Input.clickNearestOnScreen()                -- any name, on screen only
-Input.clickWhenOnScreen(cf, btn, hold, 10)  wait until on screen then click
-
-Input.hoverCFrame(cf)                       move mouse to cf, no click
-Input.hoverCFrame(cf, 1)                    hover and wait 1s
-Input.hoverPart(part, 1)
-Input.moveToCFrame(cf, 0.3, "easeOut")      smooth move to cf
-Input.moveToPart(part, 0.3)
-Input.dragBetweenParts(partA, partB)        drag from A to B
-
-Input.isOnScreen(cf)                        true/false
-Input.getScreenPos(cf)                      returns x, y or nil, nil
-Input.getPartScreenPos(part)                returns x, y or nil, nil
-Input.waitUntilOnScreen(cf, 10)             yield until visible (10s timeout)
-Input.screenDistance(cf)                    pixel distance from screen center
-
--- All world functions warn + return false if the target is off-screen.
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-CAMERA CONTROL
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Input.lookAt(Vector3.new(0, 5, 0))          snap camera to face a world position
-                                            -- switches to Scriptable camera mode
-
-Input.lookAtSmooth(Vector3.new(0,5,0), 0.4)         smooth camera rotation
-Input.lookAtSmooth(pos, duration, "easeInOut")       with easing
-
-Input.restoreCamera()                       restore camera to previous mode (Custom)
-
-Input.lookAndClick(Vector3.new(0,5,0))      look at pos, wait for it to be on screen,
-                                            click it, then restore camera automatically
-Input.lookAndClick(pos, button, holdTime, timeout)
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-BUILDING MACROS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-local m = Input.newMacro("mymacro")
-m.loops = 5
-m.speed = 2.0
-m.enabled = false     -- disable without deleting
-
-Input.addKey(m, "e")                        tap E
-Input.addKey(m, "e", 0.1, 0.5)             tap E (hold 0.1s), pre-delay 0.5s
-Input.addKeyDown(m, "w")                    hold W down (no release)
-Input.addKeyUp(m, "w")                      release W
-Input.addSpam(m, "e", 10, 0.05)             spam E 10 times inside macro
-Input.addSequence(m, {"w","a","s","d"}, 0.1)
-
-Input.addClick(m, 500, 300)
-Input.addClick(m, 500, 300, Input.RIGHT, 0.05, 0.2)
-Input.addRightClick(m, 500, 300)
-Input.addDoubleClick(m, 500, 300)
-Input.addTripleClick(m, 500, 300)
-Input.addCFrameClick(m, workspace.Part.CFrame)
-Input.addPartClick(m, workspace.Part)
-Input.addUDim2Click(m, 0.5, 0, 0.5, 0)     click at UDim2 scale position
-Input.addUDim2Click(m, xScale, xOffset, yScale, yOffset, button, holdTime, delay)
-
-Input.addMove(m, 400, 200)
-Input.addSmoothMove(m, 400, 200, 0.3, "easeInOut")
-Input.addScroll(m, 500, 300, 2)
-Input.addScrollHere(m, -1)
-Input.addDrag(m, 100,200, 500,200)
-Input.addDrag(m, x1,y1, x2,y2, btn, steps, dur, "easeOut", preDelay)
-Input.addSwipe(m, 100,300, 700,300, 0.15)
-Input.addCombo(m, {"LCtrl","z"})
-Input.addText(m, "hello", 0.05)
-Input.addText(m, "hello", 0.05, true)       randomized typing speed
-Input.addWait(m, 1)
-Input.addReleaseAll(m)
-
-Input.addCallback(m, function()             run any function as a macro step
-    print("custom step!")
-end)
-Input.addPrint(m, "reached step 3")         debug print at a specific step
-
-local inner = Input.newMacro("inner")
-Input.addKey(inner, "f")
-Input.addRepeat(m, inner, 5)                run inner 5 times inside m
-
-Input.addLabel(m, "start")                  named jump target
-Input.addGoto(m, "start", 3)                jump back to label 3 times
-
-Input.addCondition(m,                       if/else branching
-    function() return someValue == true end,
-    trueMacro,
-    falseMacro
-)
-
-Input.runMacro(m)
-Input.runMacroAsync(m)
-Input.runMacro(m, 10)                       override loops
-Input.runMacro(m, nil, 0.5)                 override speed
-
-Input.debugMacro(m)                         print a full list of macro steps
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-MACRO MANAGEMENT
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Input.saveMacro("farm", m)
-Input.loadMacro("farm")
-Input.listMacros()                          returns sorted table of names
-Input.deleteMacro("farm")
-Input.clearMacro(m)                         empty the actions list
-Input.copyMacro(m, "farm_v2")               duplicate a macro
-Input.mergeMacros(macroA, macroB, "combo")  append B onto A
-Input.debugMacro(m)                         print step-by-step breakdown
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RECORDING (capture real input)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Input.startRecording("run1")
--- play the game, do your thing...
-local actions = Input.stopRecording()
--- or auto-save:
-Input.stopRecording("run1")
-
-Input.playRecording(actions)
-Input.playRecording(actions, 1.5, 3)        1.5x speed, loop 3 times
-Input.playRecordingAsync(actions, 2.0)
-
-Input.isRecording()                         true/false
-Input.getLastRecording()                    get last action table
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-HOTKEYS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Input.bindHotkey("F6", function()
-    Input.runMacroAsync(m)
-end)
-Input.bindHotkey("F7", stopFn, "Stop loop")
-
-Input.bindHotkeyCombo({"LCtrl","F6"}, function()
-    print("Ctrl+F6 pressed")
-end)
-
-Input.bindToggle("F5", startFn, stopFn)     one key to start AND stop
-Input.bindToggle("F5", startFn, stopFn, "Farm toggle")
-
-Input.unbindHotkey("F6")
-Input.unbindAll()
-Input.listHotkeys()                         returns list of bound keys
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-EVENT LISTENERS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-local conn = Input.onKey("f", function()    fires every time F is pressed
-    print("F pressed!")
-end)
-conn:Disconnect()                           remove listener
-
-Input.onKeyRelease("f", function()
-    print("F released!")
-end)
-
-Input.onMouseClick(Input.LEFT, function(x, y)
-    print("Clicked at", x, y)
-end)
-
-Input.onMouseMove(function(x, y)            fires on every mouse movement
-    print("Mouse at", x, y)
-end)
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-UTILITY / LOOPING
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Input.wait(1.5)
-Input.waitRandom(0.5, 1.5)                  wait random time between 0.5-1.5s
-Input.waitFor(function()                    yield until a condition is true
-    return someValue == true
-end)
-Input.waitFor(condFn, timeout, interval)    with optional timeout + check interval
-Input.delay(2, function()                   run callback after delay, non-blocking
-    print("2 seconds later")
-end)
-
-Input.repeatAction(5, 0.5, function(i)
-    Input.tap("e")
-end)
-Input.repeatAsync(5, 0.5, function(i) end)
-
-local stop = Input.loop(1, function()       run every 1s forever
-    Input.tap("e")
-end)
-stop()                                      call returned function to stop
-
-local stop = Input.loopFor(30, 0.5, function()   run for 30s, every 0.5s
-    Input.tap("e")
-end)
-
-Input.loopTimes(10, 0.2, function(i)        run exactly 10 times
-    print("pass "..i)
-end)
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-LOGGING
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Input.setLogging(false)                     disable all print output
-Input.setLogging(true)                      re-enable
-Input.getLogs()                             returns table of {time, text} entries
-Input.clearLogs()                           wipe log history
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STATS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-Input.getStats()       -- {taps, clicks, scrolls, drags, macrosRun, recordingsSaved}
-Input.printStats()     -- print to console
-Input.resetStats()
-Input.getVersion()     -- "3.0.0"
-
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PRACTICAL EXAMPLES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
--- Auto-farm toggle with F5 (new bindToggle, no manual state needed):
-local stopFarm
-Input.bindToggle("F5",
-    function()
-        stopFarm = Input.loop(0.5, function()
-            Input.tap("e")
-        end)
-        print("Farm started")
-    end,
-    function()
-        if stopFarm then stopFarm() end
-        print("Farm stopped")
-    end
-)
-
--- Click a part in the 3D world:
-Input.clickPart(workspace.SomeButton)
-
--- Look at a world position and click it (handles camera automatically):
-Input.lookAndClick(Vector3.new(-151.37, 4.67, 18.64))
-
--- Click a GUI button using UDim2 coordinates (auto screen calculation):
-Input.clickUDim2(0.5, 0, 0.84, -24)
-
--- Click nearest part named "Collect":
-Input.clickNearestPart("Collect")
-
--- Click the part named "Ore" that is closest to the center of the screen:
-Input.clickNearestOnScreen("Ore")
-
--- Record then replay at 2x speed:
-Input.startRecording("run1")
-task.wait(5)
-Input.stopRecording("run1")
-Input.playRecordingAsync(Input.loadMacro("run1").actions, 2.0, 999)
-
--- Macro with branching:
-local farmMacro = Input.newMacro("farm")
-Input.addCondition(farmMacro,
-    function() return workspace:FindFirstChild("Ore") ~= nil end,
-    collectMacro,
-    walkMacro
-)
-Input.runMacroAsync(farmMacro)
-
--- Macro with debug prints and a callback step:
-local m = Input.newMacro("test")
-Input.addPrint(m, "starting")
-Input.addKey(m, "e")
-Input.addCallback(m, function()
-    print("custom logic here")
-end)
-Input.addPrint(m, "done")
-Input.runMacro(m)
-
--- Human-like typing at 80 WPM:
-Input.typeHuman("hello world", 80)
-
--- Natural bezier mouse movement:
-Input.mouseMoveNatural(800, 400, 0.5)
-
--- Smooth drag with easing:
-Input.drag(200, 400, 800, 400, Input.LEFT, 30, 0.5, "easeInOut")
-
--- Wait for player to press any of several keys:
-print("Press F, G, or H to begin...")
-local key = Input.waitForAnyKey({"f","g","h"})
-print("You pressed: "..tostring(key))
-Input.runMacroAsync(myMacro)
-
--- Wait for a condition before doing something:
-Input.waitFor(function()
-    return workspace:FindFirstChild("Boss") ~= nil
-end, 60)
-print("Boss spawned, starting macro")
-Input.runMacroAsync(bossMacro)
-
--- Fire-and-forget delayed action:
-Input.delay(3, function()
-    Input.tap("e")
-    print("tapped e after 3 seconds")
-end)
-
--- Track mouse movement for 5 seconds:
-Input.startMouseTracking()
-task.wait(5)
-local trail = Input.stopMouseTracking()
-print("recorded "..#trail.." mouse positions")
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                       InputModule  v2.0.0  README                          ║
+║              Keyboard · Mouse · Macros · Recording · Hotkeys               ║
+║                     Camera · World · Forums UI                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+── WHAT IS THIS? ───────────────────────────────────────────────────────────────
+
+InputModule is a comprehensive Roblox exploit input-automation library.
+It wraps VirtualInputManager and UserInputService to give you clean, high-level
+APIs for keyboard automation, mouse control, macro building, input recording,
+hotkeys, camera control, and more.
+
+Version 2.0.0 replaces the old custom CoreGui UI with the Forums UI library
+(xHeptc/forumsLib), adds executor detection, and adds a large number of new
+UI sections.
+
+── REQUIREMENTS ────────────────────────────────────────────────────────────────
+
+  • A Roblox exploit executor that supports:
+      - VirtualInputManager (VIM) ← REQUIRED for all input simulation
+      - loadstring()              ← needed to load the Forums UI library
+      - game:HttpGet()            ← needed to download the Forums UI library
+
+  Supported / tested executors:
+      Synapse X   ✓   Full support
+      Synapse V3  ✓   Full support
+      KRNL        ✓   Full support
+      ScriptWare  ✓   Full support
+      Wave        ✓   Full support
+      Fluxus      ✓   Full support (HttpGet required for UI)
+      Delta       ✓   Full support
+      Electron    ✓   Partial (no WebSocket)
+      Oxygen U    ✓   Partial
+      Coco Z      ✓   Partial
+
+  The executor name and feature support are detected automatically at load
+  time and displayed in the window title bar.
+
+── QUICK START ─────────────────────────────────────────────────────────────────
+
+  -- Load the module (paste into your executor)
+  local Input = loadstring(game:HttpGet("YOUR_RAW_URL_HERE"))()
+
+  -- Open the GUI
+  Input.openUI()
+
+  -- Or use it programmatically:
+  Input.tap("e")
+  Input.click(500, 300)
+  Input.typeHuman("hello world", 80)
+
+── OPENING THE UI ──────────────────────────────────────────────────────────────
+
+  Input.openUI()
+
+  This downloads the Forums UI library from:
+    https://raw.githubusercontent.com/xHeptc/forumsLib/main/source.lua
+  and builds the full control panel.
+
+  The window title shows:
+    InputModule v2.0.0  |  <ExecutorName>  |  SUPPORTED / NOT SUPPORTED
+
+── UI SECTIONS ─────────────────────────────────────────────────────────────────
+
+  ┌──────────────────────────────────────────────────────────────────────────┐
+  │  1. ℹ  Info & Executor                                                   │
+  │     Executor name, feature flags, stats, logs.                           │
+  │                                                                          │
+  │  2. ⏺  Recorder                                                          │
+  │     Record live keyboard/mouse input. Live timer display. Play back      │
+  │     recordings with speed and loop controls.                             │
+  │                                                                          │
+  │  3. ⚙  Macro Builder                                                     │
+  │     Create, load, save, copy, reverse macros. Add taps, clicks,          │
+  │     scrolls, drags, text, waits, release-alls, print markers, and more.  │
+  │     Run macros with loop/speed controls.                                 │
+  │                                                                          │
+  │  4. ⌨  Keyboard                                                          │
+  │     Tap, down, up, hold, release all. Spam (n times or continuous        │
+  │     toggle). Type text (normal / human WPM). Fire key combos.            │
+  │     Sequences. Print held keys.                                          │
+  │                                                                          │
+  │  5. 🖱  Mouse                                                             │
+  │     Live position display. Instant / smooth / natural move.              │
+  │     Left, right, double, human, center, current-pos clicks.              │
+  │     Drag, swipe. Scroll up/down at cursor or coordinates.                │
+  │     Mouse trail tracking and speed readout.                              │
+  │                                                                          │
+  │  6. 🔑  Hotkeys                                                           │
+  │     Bind F6 → releaseAll, F7 → spam toggle, F8 → run current macro.      │
+  │     List and unbind all hotkeys.                                         │
+  │                                                                          │
+  │  7. 📷  Camera & World                                                    │
+  │     Look at origin, restore camera. Screen center/size. List parts       │
+  │     on screen. Click nearest on-screen part.                             │
+  │                                                                          │
+  │  8. ⏱  Loops & Timing                                                    │
+  │     Start/stop loop (taps e on interval). Loop for duration. Repeat      │
+  │     N times. Alternate between two actions.                              │
+  │                                                                          │
+  │  9. 💾  Profiles                                                          │
+  │     Save/load/list named profiles (snapshot of macros + hotkeys).        │
+  │                                                                          │
+  │ 10. 🔗  Hooks & Events                                                    │
+  │     Add afterTap, afterClick, macro start/stop hooks. Clear all hooks.   │
+  │     Wait for next key press or mouse click (once).                       │
+  └──────────────────────────────────────────────────────────────────────────┘
+
+── PROGRAMMATIC API REFERENCE ──────────────────────────────────────────────────
+
+  ── KEYBOARD ──────────────────────────────────────────────────────────────
+
+  Input.tap(key, holdTime?)            -- Press and release a key
+  Input.tapAsync(key, holdTime?)       -- Same, non-blocking
+  Input.tapMultiple(keys, ht, iv)      -- Tap a list of keys with interval
+  Input.keyDown(key)                   -- Hold key down
+  Input.keyUp(key)                     -- Release key
+  Input.holdKey(key, duration)         -- Hold for duration seconds
+  Input.holdKeys(keys, duration)       -- Hold multiple keys
+  Input.combo(keys, callback, rd)      -- Press all keys together
+  Input.releaseAll()                   -- Release everything
+  Input.spam(key, n, interval)         -- Tap n times
+  Input.spamUntil(key, fn, iv, max)    -- Spam until condition is true
+  Input.typeText(text, interval, rand) -- Type a string
+  Input.typeHuman(text, wpm)           -- Type like a human at WPM speed
+  Input.sequence(keyList, interval)    -- Run a key sequence table
+  Input.isKeyHeld(key)                 -- Returns true if key is down
+  Input.getHeldKeys()                  -- Returns table of held key names
+  Input.waitForKey(key, timeout)       -- Block until key is pressed
+  Input.waitForAnyKey(keys, timeout)   -- Block until any of the keys is pressed
+
+  ── MOUSE ─────────────────────────────────────────────────────────────────
+
+  Input.mouseMove(x, y)                     -- Instant move
+  Input.mouseMoveSmooth(x, y, dur, style)   -- Smooth tweened move
+  Input.mouseMoveNatural(x, y, dur)         -- Bezier natural move
+  Input.mouseBezier(points, dur)            -- Multi-point bezier path
+  Input.mouseDown(x, y, btn)               -- Press mouse button
+  Input.mouseUp(x, y, btn)                 -- Release mouse button
+  Input.click(x, y, btn, holdTime)         -- Full click
+  Input.rightClick(x, y, holdTime)         -- Right click
+  Input.doubleClick(x, y, btn, gap)        -- Double click
+  Input.tripleClick(x, y, btn, gap)        -- Triple click
+  Input.clickAndHold(x, y, duration, btn)  -- Click and hold
+  Input.clickHuman(x, y, btn, ht, spread)  -- Jittered human click
+  Input.clickFromCenter(ox, oy, btn, ht)   -- Click relative to center
+  Input.clickRegion(x1,y1,x2,y2, btn, ht) -- Click random spot in region
+  Input.clickUDim2(xs,xo,ys,yo, btn, ht)  -- Click at UDim2 coordinates
+  Input.drag(x1,y1,x2,y2, btn, steps, dur, style) -- Drag
+  Input.swipe(x1,y1,x2,y2, dur)           -- Fast swipe
+  Input.scroll(x, y, amount, stepDelay)   -- Scroll wheel at position
+  Input.scrollHere(amount, stepDelay)     -- Scroll at current cursor
+  Input.getMousePos()                     -- Returns x, y
+  Input.waitForClick(btn, timeout)        -- Block until clicked
+  Input.startMouseTracking()              -- Begin recording trail
+  Input.stopMouseTracking()               -- Stop and return trail
+  Input.getMouseSpeed()                   -- px/s based on recent trail
+
+  ── MACRO BUILDER ────────────────────────────────────────────────────────
+
+  Input.newMacro(name)                   -- Create a new macro
+  Input.saveMacro(name, macro)           -- Save to store
+  Input.loadMacro(name)                  -- Load from store
+  Input.deleteMacro(name)                -- Delete from store
+  Input.clearMacro(macro)               -- Remove all actions
+  Input.copyMacro(macro, newName)        -- Deep copy
+  Input.mergeMacros(mA, mB, name)        -- Combine two macros
+  Input.reverseMacro(macro, name)        -- Reverse action order
+  Input.debugMacro(macro)               -- Print action list
+  Input.getMacroEstimatedTime(macro)    -- Estimated run duration in seconds
+  Input.runMacro(macro, loops, speed)   -- Run synchronously
+  Input.runMacroAsync(macro, loops, speed) -- Run in background, returns id
+  Input.getActiveMacros()               -- Table of running macro ids
+  Input.watchMacro(name, callback)      -- Called on start/stop
+
+  Action adders (call after newMacro):
+    Input.addKey(m, key, holdTime, delay)
+    Input.addKeyDown(m, key, delay)
+    Input.addKeyUp(m, key, delay)
+    Input.addWait(m, duration)
+    Input.addWaitRandom(m, min, max)
+    Input.addReleaseAll(m, delay)
+    Input.addClick(m, x, y, btn, holdTime, delay)
+    Input.addRightClick(m, x, y, holdTime, delay)
+    Input.addDoubleClick(m, x, y, delay)
+    Input.addTripleClick(m, x, y, delay)
+    Input.addMove(m, x, y, delay)
+    Input.addSmoothMove(m, x, y, dur, easing, delay)
+    Input.addNaturalMove(m, x, y, dur, delay)
+    Input.addScroll(m, x, y, amount, delay)
+    Input.addScrollHere(m, amount, delay)
+    Input.addCombo(m, keys, releaseDelay, delay)
+    Input.addText(m, text, interval, randomize, delay)
+    Input.addTextHuman(m, text, wpm, delay)
+    Input.addDrag(m, x1, y1, x2, y2, btn, steps, dur, style, delay)
+    Input.addSwipe(m, x1, y1, x2, y2, dur, delay)
+    Input.addSpam(m, key, times, interval, delay)
+    Input.addSequence(m, keyList, interval, delay)
+    Input.addCFrameClick(m, cframe, btn, holdTime, delay)
+    Input.addPartClick(m, part, btn, holdTime, delay)
+    Input.addRepeat(m, innerMacro, times)
+    Input.addCondition(m, condFn, trueMacro, falseMacro)
+    Input.addCallback(m, fn, delay)
+    Input.addPrint(m, message)
+    Input.addUDim2Click(m, xs, xo, ys, yo, btn, holdTime, delay)
+    Input.addWaitFor(m, conditionFn, timeout, interval)
+    Input.addBreakIf(m, conditionFn)
+    Input.addLabel(m, labelName)
+    Input.addGoto(m, labelName, times)
+
+  ── RECORDING ────────────────────────────────────────────────────────────
+
+  Input.startRecording(name)             -- Begin capturing input
+  Input.stopRecording(saveName?)         -- Stop, optionally save
+  Input.isRecording()                    -- Returns bool
+  Input.getLastRecording()              -- Returns action table
+  Input.getRecordingTime()              -- Seconds elapsed
+  Input.getRecordingCount()             -- Number of recorded actions
+  Input.playRecording(actions, speed, loops)
+  Input.playRecordingAsync(actions, speed, loops)
+  Input.trimRecording(actions, threshold) -- Cut start/end dead time
+  Input.scaleRecording(actions, factor)   -- Time-stretch recording
+
+  ── HOTKEYS ──────────────────────────────────────────────────────────────
+
+  Input.bindHotkey(key, callback, label)
+  Input.bindHotkeyCombo(keys, callback)  -- Multi-key combo hotkey
+  Input.bindToggle(key, startFn, stopFn, label)
+  Input.bindMacroHotkey(key, macro, label)
+  Input.unbindHotkey(key)
+  Input.unbindAll()
+  Input.listHotkeys()                    -- Returns list of strings
+
+  ── HOOKS ────────────────────────────────────────────────────────────────
+
+  Available hook names:
+    beforeKeyDown, afterKeyDown
+    beforeKeyUp,   afterKeyUp
+    beforeTap,     afterTap
+    beforeClick,   afterClick
+    beforeMacro,   afterMacro
+
+  Input.addHook(eventName, fn)
+  Input.removeHooks(eventName)
+  Input.clearAllHooks()
+
+  ── CAMERA & WORLD ───────────────────────────────────────────────────────
+
+  Input.lookAt(worldPos)
+  Input.lookAtSmooth(worldPos, dur, easing)
+  Input.restoreCamera()
+  Input.lookAndClick(worldPos, btn, holdTime, timeout)
+  Input.orbitCamera(target, radius, dur, revolutions)
+  Input.clickCFrame(cframe, btn, holdTime)
+  Input.clickPart(basePart, btn, holdTime)
+  Input.clickPosition(worldPos, btn, holdTime)
+  Input.clickModel(model, btn, holdTime)
+  Input.clickWhenOnScreen(cframe, btn, holdTime, timeout)
+  Input.clickNearestPart(tag?, btn, holdTime)
+  Input.clickNearestOnScreen(tag?, btn, holdTime)
+  Input.hoverCFrame(cframe, duration?)
+  Input.hoverPart(basePart, duration?)
+  Input.moveToCFrame(cframe, dur, style)
+  Input.moveToPart(basePart, dur, style)
+  Input.dragBetweenParts(partA, partB, btn, steps, dur)
+  Input.getScreenPos(cframe)            -- Returns sx, sy or nil
+  Input.getPartScreenPos(basePart)
+  Input.isOnScreen(cframe)
+  Input.waitUntilOnScreen(cframe, timeout)
+  Input.screenDistance(cframe)         -- Pixels from screen center
+  Input.getPartsOnScreen(tag?)         -- Sorted by screen distance
+  Input.getDepth(cframe)               -- Distance from camera
+  Input.isNearScreenCenter(cframe, radius)
+
+  ── SCREEN UTILS ─────────────────────────────────────────────────────────
+
+  Input.getScreenSize()
+  Input.getScreenCenter()
+  Input.screenFraction(fx, fy)
+  Input.fromUDim2(xScale, xOffset, yScale, yOffset)
+  Input.fromUDim2Smart(...)            -- Negative scale = from right/bottom
+  Input.fromUDim2Object(udim2Object)
+
+  ── LOOPS & TIMING ───────────────────────────────────────────────────────
+
+  Input.wait(seconds)
+  Input.waitRandom(min, max)
+  Input.waitFor(conditionFn, timeout, interval)
+  Input.delay(seconds, callback)
+  Input.repeatAction(n, interval, callback)
+  Input.repeatAsync(n, interval, callback)
+  Input.loop(interval, callback)        -- Returns stop function
+  Input.loopFor(duration, interval, cb) -- Returns stop function
+  Input.loopTimes(n, interval, callback)
+  Input.alternate(fnA, fnB, n, waitA, waitB)
+
+  ── EASING STYLES ────────────────────────────────────────────────────────
+
+  linear, easeIn, easeOut, easeInOut, bounce, elastic,
+  sine, cubic, back, expo, circ
+
+  ── STATS & LOGGING ──────────────────────────────────────────────────────
+
+  Input.getStats()           -- Returns {taps, clicks, scrolls, drags, ...}
+  Input.resetStats()
+  Input.printStats()
+  Input.setLogging(bool)
+  Input.getLogs()            -- Returns full log history table
+  Input.clearLogs()
+  Input.printLogs(n?)        -- Print last n log lines
+  Input.getLogsSince(tick)
+  Input.exportLogs()         -- Returns log as single string
+
+  ── PROFILES ─────────────────────────────────────────────────────────────
+
+  Input.saveProfile(name)    -- Snapshot macros + hotkeys
+  Input.loadProfile(name)
+  Input.listProfiles()
+
+  ── EXECUTOR DETECTION ───────────────────────────────────────────────────
+
+  Input.Executor.name        -- String name of detected executor
+  Input.Executor.supported   -- Bool: VIM available (required for module)
+  Input.Executor.features    -- Table of { featureName = bool }
+
+  Feature flags checked:
+    Drawing, HttpGet, getgenv, getrenv, setfenv, getfenv,
+    require, loadstring, gethui, VIM, WebSocket,
+    writefile, readfile, listfiles
+
+── KEY NAME REFERENCE ──────────────────────────────────────────────────────────
+
+  Letters    :  a–z  A–Z
+  Numbers    :  0–9
+  Numpad     :  Num0–Num9  Num.  Num+  Num-  Num*  Num/  NumEnter
+  Function   :  F1–F12
+  Modifiers  :  LShift  RShift  LCtrl  RCtrl  LAlt  RAlt  LMeta  RMeta
+  Navigation :  Up  Down  Left  Right  Home  End  PageUp  PageDown
+  Editing    :  Enter  Backspace  Delete  Insert  Tab  Escape  Space
+  Symbols    :  - = [ ] \ ; ' , . / `
+  Locks      :  CapsLock  NumLock  ScrollLock
+  Shifted    :  ! @ # $ % ^ & * ( ) ~ _ + { } | : " < > ?
+
+── EXAMPLE SCRIPTS ─────────────────────────────────────────────────────────────
+
+  ── 1. Simple loop that taps E every second ─────────────────────────────────
+
+  local stop = Input.loop(1, function()
+      Input.tap("e")
+  end)
+  -- later: stop()
+
+  ── 2. Build and run a macro ─────────────────────────────────────────────────
+
+  local m = Input.newMacro("farm")
+  Input.addKey(m, "e", 0.05)
+  Input.addWait(m, 0.3)
+  Input.addKey(m, "f", 0.05)
+  Input.addWait(m, 0.5)
+  m.loops = 10
+  Input.runMacroAsync(m)
+
+  ── 3. Record and play back ──────────────────────────────────────────────────
+
+  Input.startRecording("myRecording")
+  task.wait(5)  -- do stuff
+  local actions = Input.stopRecording("myRecording")
+  Input.playRecordingAsync(actions, 1.0, 2)  -- play 2x at normal speed
+
+  ── 4. Bind a toggle hotkey ──────────────────────────────────────────────────
+
+  Input.bindToggle("F6",
+      function()
+          print("Started!")
+      end,
+      function()
+          print("Stopped!")
+      end
+  )
+
+  ── 5. Click a Part in the 3D world ─────────────────────────────────────────
+
+  local part = workspace:FindFirstChild("TargetPart")
+  Input.clickPart(part)
+
+  ── 6. Type like a human ─────────────────────────────────────────────────────
+
+  Input.typeHuman("Hello, how are you?", 75)  -- 75 WPM
+
+── CHANGELOG ───────────────────────────────────────────────────────────────────
+
+  v2.0.0 (current)
+    ● Replaced CoreGui UI with xHeptc/forumsLib (Forums UI)
+    ● Added executor detection system (Input.Executor)
+    ● Added executor name + support status in window title
+    ● Added feature flag detection (Drawing, WebSocket, VIM, etc.)
+    ● Expanded UI to 10 sections (was 4 tabs)
+    ● Added Info & Executor section
+    ● Added Loops & Timing section
+    ● Added Profiles section
+    ● Added Hooks & Events section
+    ● Added Camera & World section
+    ● Added continuous spam toggle in Keyboard section
+    ● Added mouse trail tracking controls in Mouse section
+    ● Added live mouse position display toggle
+    ● Extended recording UI with print actions button
+    ● Added macro copy, reverse, merge buttons
+    ● Added alternate() and loopFor() to loop section
+    ● Removed CoreGui / TweenService / old custom window dependencies
+
+  v1.1.0
+    ● Initial CoreGui-based UI
+    ● Tabs: Recorder, Macros, Keyboard, Mouse
+    ● Macro builder with action list
+    ● Full recording/playback
+    ● Custom drag-to-move window
+
+  v1.0.0
+    ● Initial release (no UI)
+
+── NOTES ───────────────────────────────────────────────────────────────────────
+
+  • All inputs are fired through VirtualInputManager. This means they are
+    processed by the game's input pipeline and are subject to any anti-cheat
+    the game uses. Use responsibly.
+
+  • Mouse coordinate inputs are raw screen pixels. Use Input.getScreenCenter()
+    and Input.fromUDim2() to work with responsive coordinates.
+
+  • The Forums UI library is loaded from GitHub at runtime. If the URL is
+    unavailable, Input.openUI() will error. The rest of the module works
+    without the UI.
+
+  • Profiles are stored in memory only. They do not persist between sessions
+    unless you implement file I/O using writefile/readfile if your executor
+    supports it.
